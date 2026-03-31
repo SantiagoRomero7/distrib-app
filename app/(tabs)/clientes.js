@@ -1,14 +1,22 @@
-import { useCallback, useState } from 'react';
-import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Modal, TextInput, Alert, RefreshControl, ScrollView,
-  KeyboardAvoidingView, Platform,
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
+import {
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  RefreshControl, ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { supabase } from '../../supabase';
-import { formatPesos, formatInputPesos, parsePesos } from '../../utils/formatters';
 import { formatearFecha } from '../../utils/fecha';
+import { formatInputPesos, formatPesos, parsePesos } from '../../utils/formatters';
 
 export default function Clientes() {
   const [clientes, setClientes] = useState([]);
@@ -16,17 +24,17 @@ export default function Clientes() {
   const [modalDetalle, setModalDetalle] = useState(false);
   const [modalPago, setModalPago] = useState(false);
   const [modalHistorialPagos, setModalHistorialPagos] = useState(false);
-  
+
   const [clienteSel, setClienteSel] = useState(null);
   const [historialCompras, setHistorialCompras] = useState([]);
   const [historialPagos, setHistorialPagos] = useState([]);
-  
+
   const [nombre, setNombre] = useState('');
   const [telefono, setTelefono] = useState('');
-  
+
   const [montoPago, setMontoPago] = useState('');
   const [notaPago, setNotaPago] = useState('');
-  
+
   const [refreshing, setRefreshing] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [editando, setEditando] = useState(null);
@@ -58,11 +66,13 @@ export default function Clientes() {
   const eliminarCliente = (c) => {
     Alert.alert('Eliminar', `¿Eliminar a "${c.nombre}"?`, [
       { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: async () => {
-        const { error } = await supabase.from('clientes').delete().eq('id', c.id);
-        if (error) Alert.alert('Error', error.message);
-        else { Alert.alert('Listo', 'Cliente eliminado'); cargarClientes(); }
-      }},
+      {
+        text: 'Eliminar', style: 'destructive', onPress: async () => {
+          const { error } = await supabase.from('clientes').delete().eq('id', c.id);
+          if (error) Alert.alert('Error', error.message);
+          else { Alert.alert('Listo', 'Cliente eliminado'); cargarClientes(); }
+        }
+      },
     ]);
   };
 
@@ -85,15 +95,15 @@ export default function Clientes() {
 
   const registrarPago = async () => {
     const montoAbono = parsePesos(montoPago);
-    if (montoAbono <= 0) { 
-      Alert.alert('Error', 'Ingresa un monto válido'); 
-      return; 
+    if (montoAbono <= 0) {
+      Alert.alert('Error', 'Ingresa un monto válido');
+      return;
     }
     const saldoAntes = Number(clienteSel.saldo_fiado);
-    
+
     setCargando(true);
     const saldoDespues = Math.max(0, saldoAntes - montoAbono);
-    
+
     // Insertar en historial
     const { error: errPago } = await supabase.from('pagos_fiado').insert([{
       cliente_id: clienteSel.id,
@@ -208,20 +218,20 @@ export default function Clientes() {
                   <Text style={[s.detalleSaldo, { color: Number(clienteSel.saldo_fiado) > 0 ? '#ff8f00' : '#2d6a4f' }]}>{formatPesos(clienteSel.saldo_fiado)}</Text>
                 </View>
               </View>
-              
+
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
                 {Number(clienteSel.saldo_fiado) > 0 && (
-                  <TouchableOpacity style={[s.pagoBtn, { flex: 1.5 }]} onPress={() => { 
-                    setModalDetalle(false); 
-                    setMontoPago(''); 
+                  <TouchableOpacity style={[s.pagoBtn, { flex: 1.5 }]} onPress={() => {
+                    setModalDetalle(false);
+                    setMontoPago('');
                     setNotaPago('');
-                    setTimeout(() => setModalPago(true), 400); 
+                    setTimeout(() => setModalPago(true), 400);
                   }}>
                     <Ionicons name="cash" size={20} color="#fff" />
                     <Text style={s.pagoBtnText}>Registrar Abono</Text>
                   </TouchableOpacity>
                 )}
-                
+
                 <TouchableOpacity style={[s.pagoBtn, { flex: 1, backgroundColor: '#40916c' }]} onPress={() => abrirHistorialPagos(clienteSel)}>
                   <Ionicons name="time" size={20} color="#fff" />
                   <Text style={s.pagoBtnText}>Pagos</Text>
@@ -307,10 +317,10 @@ export default function Clientes() {
                 <TouchableOpacity onPress={() => setModalPago(false)}><Ionicons name="close" size={28} color="#666" /></TouchableOpacity>
               </View>
               <Text style={s.label}>Saldo actual: <Text style={{ color: '#ff8f00', fontWeight: 'bold' }}>{formatPesos(clienteSel?.saldo_fiado)}</Text></Text>
-              
+
               <Text style={s.label}>Monto del Pago *</Text>
               <TextInput style={s.input} value={montoPago} onChangeText={(v) => setMontoPago(formatInputPesos(v))} placeholder="Ej: 10.000" keyboardType="numeric" placeholderTextColor="#aaa" />
-              
+
               <Text style={s.label}>Nota (Opcional)</Text>
               <TextInput style={s.input} value={notaPago} onChangeText={setNotaPago} placeholder="Ej: Pago en efectivo" placeholderTextColor="#aaa" />
 

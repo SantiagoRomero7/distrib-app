@@ -1,13 +1,23 @@
-import { useCallback, useState } from 'react';
-import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Modal, TextInput, Alert, RefreshControl, KeyboardAvoidingView,
-  Platform, ScrollView,
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
+import {
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { useModoDiscreto } from '../../hooks/useModoDiscreto';
 import { supabase } from '../../supabase';
-import { formatPesos, formatInputPesos, parsePesos } from '../../utils/formatters';
+import { formatInputPesos, formatPesos, parsePesos } from '../../utils/formatters';
 
 export default function Productos() {
   const [productos, setProductos] = useState([]);
@@ -19,6 +29,7 @@ export default function Productos() {
   const [precioVenta, setPrecioVenta] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [cargando, setCargando] = useState(false);
+  const { ocultarSensible } = useModoDiscreto();
 
   const cargarProductos = async () => {
     const { data, error } = await supabase
@@ -147,7 +158,7 @@ export default function Productos() {
         <View style={styles.preciosRow}>
           <View style={styles.precioBox}>
             <Text style={styles.precioLabel}>Compra</Text>
-            <Text style={styles.precioCompra}>{formatPesos(item.precio_compra)}</Text>
+            <Text style={styles.precioCompra}>{ocultarSensible(formatPesos(item.precio_compra))}</Text>
           </View>
           <Ionicons name="arrow-forward" size={16} color="#999" />
           <View style={styles.precioBox}>
@@ -157,7 +168,7 @@ export default function Productos() {
           <View style={styles.precioBox}>
             <Text style={styles.precioLabel}>Ganancia</Text>
             <Text style={styles.precioGanancia}>
-              {formatPesos(Number(item.precio_venta) - Number(item.precio_compra))}
+              {ocultarSensible(formatPesos(Number(item.precio_venta) - Number(item.precio_compra)))}
             </Text>
           </View>
         </View>

@@ -1,10 +1,10 @@
-import { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useModoDiscreto } from '../../hooks/useModoDiscreto';
 import { supabase } from '../../supabase';
+import { fechaHoyColombia, formatearFecha, formatearSoloFecha } from '../../utils/fecha';
 import { formatPesos } from '../../utils/formatters';
-import { fechaHoyColombia, formatearSoloFecha, formatearFecha } from '../../utils/fecha';
 
 export default function Reportes() {
   const [tabSeleccionado, setTabSeleccionado] = useState('Hoy');
@@ -12,6 +12,7 @@ export default function Reportes() {
   const [datosSemana, setDatosSemana] = useState([]);
   const [datosMes, setDatosMes] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+  const { ocultarSensible } = useModoDiscreto();
 
   const cargarDatos = async () => {
     try {
@@ -93,7 +94,7 @@ export default function Reportes() {
           <View style={s.cardHeader}>
             <Text style={s.cardTitle}>📈 Ganancia de hoy</Text>
           </View>
-          <Text style={s.bigNumber}>{formatPesos(datosHoy.total_ganancia)}</Text>
+          <Text style={s.bigNumber}>{ocultarSensible(formatPesos(datosHoy.total_ganancia))}</Text>
         </View>
       </View>
     );
@@ -133,7 +134,7 @@ export default function Reportes() {
               <Text style={s.listLabel}>📦 {Number(d.total_cajas)} cajas</Text>
               <Text style={s.listVal}>{formatPesos(d.total_ventas)}</Text>
             </View>
-            <Text style={s.listGanancia}>📈 {formatPesos(d.total_ganancia)}</Text>
+            <Text style={s.listGanancia}>📈 {ocultarSensible(formatPesos(d.total_ganancia))}</Text>
           </View>
         ))}
 
@@ -149,7 +150,7 @@ export default function Reportes() {
           </View>
           <View style={s.totRow}>
             <Text style={s.totLabel}>📈 Ganancia:</Text>
-            <Text style={[s.totVal, { color: '#2d6a4f' }]}>{formatPesos(totalGanancia)}</Text>
+            <Text style={[s.totVal, { color: '#2d6a4f' }]}>{ocultarSensible(formatPesos(totalGanancia))}</Text>
           </View>
           <View style={[s.totRow, { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#e0e0e0' }]}>
             <Text style={s.totLabel}>💵 Efectivo:</Text>

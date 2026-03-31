@@ -1,17 +1,27 @@
-import { useCallback, useState } from 'react';
-import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Modal, TextInput, Alert, RefreshControl, ScrollView, Switch,
-  KeyboardAvoidingView, Platform,
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
+import {
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  RefreshControl, ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { useModoDiscreto } from '../../hooks/useModoDiscreto';
 import { supabase } from '../../supabase';
-import { formatPesos, formatInputPesos, parsePesos } from '../../utils/formatters';
-import { ahoraEnColombia, fechaHoyColombia, fechaMananaColombia, formatearFecha, formatearFechaCorta } from '../../utils/fecha';
+import { ahoraEnColombia, fechaHoyColombia, formatearFecha, formatearFechaCorta } from '../../utils/fecha';
+import { formatInputPesos, formatPesos, parsePesos } from '../../utils/formatters';
 
 const generarUUID = () => {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
     const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
   });
@@ -33,6 +43,7 @@ export default function Ventas() {
   const [refreshing, setRefreshing] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [showClients, setShowClients] = useState(false);
+  const { ocultarSensible } = useModoDiscreto();
 
   const cargarDatos = async () => {
     const { data: v, error } = await supabase.from('ventas')
@@ -43,7 +54,7 @@ export default function Ventas() {
     if (v) {
       const grupos = {};
       const sinGrupo = [];
-      
+
       v.forEach(venta => {
         // Usa venta_grupo si existe, de lo contrario agrupa por fecha y cliente (para historial antiguo)
         const grupoKey = venta.venta_grupo || `${venta.fecha}_${venta.cliente_id || 'sin_cli'}`;
@@ -65,12 +76,12 @@ export default function Ventas() {
         grupos[grupoKey].productos_count += 1;
         grupos[grupoKey].items.push(venta);
       });
-      
+
       const arrayGrupos = Object.values(grupos);
       arrayGrupos.sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)));
       setVentasAgrupadas(arrayGrupos);
     }
-    
+
     if (error) console.error(error);
 
     const { data: p } = await supabase.from('productos').select('*').order('nombre');
@@ -101,11 +112,11 @@ export default function Ventas() {
   const agregarItem = () => { setItems(prev => [...prev, crearItemVacio()]); };
   const eliminarItem = (id) => { setItems(prev => prev.filter(it => it.id !== id)); };
   const seleccionarProducto = (itemId, prod) => {
-    setItems(prev => prev.map(it => it.id === itemId ? { 
-      ...it, 
-      producto: prod, 
+    setItems(prev => prev.map(it => it.id === itemId ? {
+      ...it,
+      producto: prod,
       precio_aplicado: formatInputPesos(prod.precio_venta.toString()),
-      showPicker: false 
+      showPicker: false
     } : it));
   };
 
@@ -113,7 +124,7 @@ export default function Ventas() {
     const itemsValidos = items.filter(it => it.producto && it.cantidad && Number(it.cantidad) > 0);
     if (itemsValidos.length === 0) { Alert.alert('Error', 'Agrega al menos un producto con cantidad'); return; }
     if (esFiado && !clienteSel) { Alert.alert('Error', 'Para crédito debes seleccionar un cliente'); return; }
-    
+
     verificarGanancia(itemsValidos, fechaHoyColombia());
   };
 
@@ -131,7 +142,7 @@ export default function Ventas() {
 
     if (gananciaNegativa) {
       Alert.alert(
-        '⚠ Atención', 
+        '⚠ Atención',
         'Estás vendiendo por debajo del precio de compra. ¿Confirmar de todas formas?',
         [
           { text: 'Cancelar', style: 'cancel' },
@@ -277,14 +288,14 @@ export default function Ventas() {
             </TouchableOpacity>
           )}
         </View>
-        
+
         <TouchableOpacity style={s.selector} onPress={() => actualizarItem(item.id, 'showPicker', !item.showPicker)}>
           <Text style={item.producto ? s.selText : s.selPlaceholder}>
             {item.producto ? item.producto.nombre : 'Seleccionar producto...'}
           </Text>
           <Ionicons name={item.showPicker ? 'chevron-up' : 'chevron-down'} size={24} color="#666" />
         </TouchableOpacity>
-        
+
         {item.showPicker && (
           <ScrollView style={{ maxHeight: 150 }} nestedScrollEnabled>
             {productos.map((p) => (
@@ -305,14 +316,14 @@ export default function Ventas() {
             <Text style={s.labelField}>Precio a aplicar (estándar: {formatPesos(item.producto.precio_venta)})</Text>
             <TextInput style={s.input} value={item.precio_aplicado} onChangeText={(v) => actualizarItem(item.id, 'precio_aplicado', formatInputPesos(v))}
               placeholder="Ej: 50.000" keyboardType="numeric" placeholderTextColor="#aaa" />
-            
+
             {isBelowStandard && <Text style={s.warnBelow}>⚠ Precio por debajo del estándar</Text>}
             {isAboveStandard && <Text style={s.warnAbove}>↑ Precio por encima del estándar</Text>}
           </>
         )}
 
         {item.producto && item.cantidad && item.precio_aplicado ? (
-          <Text style={s.itemSubtotal}>Subtotal: {formatPesos(calcularSubtotal(item))} · Ganancia: {formatPesos(calcularGananciaItem(item))}</Text>
+          <Text style={s.itemSubtotal}>Subtotal: {formatPesos(calcularSubtotal(item))} · Ganancia: {ocultarSensible(formatPesos(calcularGananciaItem(item)))}</Text>
         ) : null}
       </View>
     );
@@ -329,7 +340,7 @@ export default function Ventas() {
             <Text style={s.emptyText}>Sin ventas registradas</Text><Text style={s.emptySub}>Toca + para una nueva</Text></View>
         }
       />
-      
+
       <TouchableOpacity style={s.fab} onPress={abrirModalFormulario}><Ionicons name="add" size={36} color="#fff" /></TouchableOpacity>
 
       {/* Modal Nueva Venta */}
@@ -361,7 +372,7 @@ export default function Ventas() {
                     <Text style={s.calcTotalLabel}>Total</Text><Text style={s.calcTotal}>{formatPesos(totalGeneral)}</Text>
                   </View>
                   <View style={s.calcRow}>
-                    <Text style={s.calcLabel}>Ganancia</Text><Text style={s.calcGanancia}>{formatPesos(gananciaTotal)}</Text>
+                    <Text style={s.calcLabel}>Ganancia</Text><Text style={s.calcGanancia}>{ocultarSensible(formatPesos(gananciaTotal))}</Text>
                   </View>
                 </View>
               )}
@@ -427,7 +438,7 @@ export default function Ventas() {
               <Text style={s.modalTitle}>Detalle de Venta</Text>
               <TouchableOpacity onPress={() => setModalDetalleVisible(false)}><Ionicons name="close" size={32} color="#666" /></TouchableOpacity>
             </View>
-            
+
             {ventaSel && (
               <ScrollView>
                 <View style={{ marginBottom: 16 }}>
@@ -456,7 +467,7 @@ export default function Ventas() {
                     Total: {formatPesos(ventaSel.total)}
                   </Text>
                   <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#2d6a4f', textAlign: 'right', marginTop: 4 }}>
-                    Ganancia: {formatPesos(ventaSel.ganancia)}
+                    Ganancia: {ocultarSensible(formatPesos(ventaSel.ganancia))}
                   </Text>
                 </View>
 

@@ -1,7 +1,17 @@
-import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Tabs } from 'expo-router';
+import { TouchableOpacity } from 'react-native';
+import { useModoDiscreto } from '../../hooks/useModoDiscreto';
 
 export default function TabLayout() {
+  const { discreto, toggleDiscreto } = useModoDiscreto();
+
+  const headerRight = () => (
+    <TouchableOpacity onPress={toggleDiscreto} style={{ marginRight: 16 }}>
+      <Ionicons name={discreto ? 'eye-off' : 'eye'} size={24} color="#fff" />
+    </TouchableOpacity>
+  );
+
   return (
     <Tabs
       screenOptions={{
@@ -30,6 +40,7 @@ export default function TabLayout() {
           fontSize: 20,
         },
         headerShown: true,
+        headerRight,
       }}
     >
       <Tabs.Screen

@@ -1,11 +1,12 @@
-import { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Alert, Modal, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
+import { useCallback, useState } from 'react';
+import { Alert, Modal, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useModoDiscreto } from '../../hooks/useModoDiscreto';
 import { supabase } from '../../supabase';
+import { ahoraEnColombia, fechaHoyColombia, formatearFecha } from '../../utils/fecha';
 import { formatPesos } from '../../utils/formatters';
-import { fechaHoyColombia, ahoraEnColombia, formatearFecha } from '../../utils/fecha';
 
 export default function Dashboard() {
   const [gananciaHoy, setGananciaHoy] = useState(0);
@@ -14,7 +15,7 @@ export default function Dashboard() {
   const [efectivoHoy, setEfectivoHoy] = useState(0);
   const [transferHoy, setTransferHoy] = useState(0);
   const [cajasHoy, setCajasHoy] = useState(0);
-  
+
   const [stockBajo, setStockBajo] = useState([]);
   const [clientesCredito, setClientesCredito] = useState([]);
   const [cajaCerrada, setCajaCerrada] = useState(false);
@@ -26,6 +27,7 @@ export default function Dashboard() {
   const [pinNuevo, setPinNuevo] = useState('');
   const [pinConfirmar, setPinConfirmar] = useState('');
   const router = useRouter();
+  const { ocultarSensible } = useModoDiscreto();
 
   const cargarDatos = async () => {
     try {
@@ -91,45 +93,47 @@ export default function Dashboard() {
   const cerrarCaja = async () => {
     Alert.alert(
       '¿Cerrar caja?',
-      `Al cerrar la caja quedará guardado el resumen de hoy. Podrás seguir viendo los reportes pero no se sumará más a este día.\n\nResumen de hoy:\n📦 Cajas vendidas: ${cajasHoy}\n💰 Total vendido: ${formatPesos(totalVentasHoy)}\n📈 Ganancia: ${formatPesos(gananciaHoy)}`,
+      `Al cerrar la caja quedará guardado el resumen de hoy. Podrás seguir viendo los reportes pero no se sumará más a este día.\n\nResumen de hoy:\n📦 Cajas vendidas: ${cajasHoy}\n💰 Total vendido: ${formatPesos(totalVentasHoy)}\n📈 Ganancia: ${ocultarSensible(formatPesos(gananciaHoy))}`,
       [
         { text: 'Cancelar', style: 'cancel' },
-        { text: 'Sí, cerrar caja', style: 'destructive', onPress: async () => {
-          try {
-            const hoy = fechaHoyColombia();
-            const ahora = ahoraEnColombia().toISOString();
-            
-            const { data: resumenHoy } = await supabase
-              .from('resumen_diario')
-              .select('*')
-              .eq('fecha', hoy)
-              .single();
+        {
+          text: 'Sí, cerrar caja', style: 'destructive', onPress: async () => {
+            try {
+              const hoy = fechaHoyColombia();
+              const ahora = ahoraEnColombia().toISOString();
 
-            if (!resumenHoy) {
-              await supabase.from('resumen_diario').insert({
-                fecha: hoy,
-                total_cajas: 0,
-                total_ventas: 0,
-                total_ganancia: 0,
-                total_efectivo: 0,
-                total_transferencia: 0,
-                cantidad_ventas: 0,
-                caja_cerrada: true,
-                hora_cierre: ahora
-              });
-            } else {
-              await supabase.from('resumen_diario').update({
-                caja_cerrada: true,
-                hora_cierre: ahora
-              }).eq('fecha', hoy);
+              const { data: resumenHoy } = await supabase
+                .from('resumen_diario')
+                .select('*')
+                .eq('fecha', hoy)
+                .single();
+
+              if (!resumenHoy) {
+                await supabase.from('resumen_diario').insert({
+                  fecha: hoy,
+                  total_cajas: 0,
+                  total_ventas: 0,
+                  total_ganancia: 0,
+                  total_efectivo: 0,
+                  total_transferencia: 0,
+                  cantidad_ventas: 0,
+                  caja_cerrada: true,
+                  hora_cierre: ahora
+                });
+              } else {
+                await supabase.from('resumen_diario').update({
+                  caja_cerrada: true,
+                  hora_cierre: ahora
+                }).eq('fecha', hoy);
+              }
+
+              Alert.alert('✅ Caja cerrada', 'El resumen de hoy quedó guardado correctamente. ¡Hasta mañana!');
+              cargarDatos();
+            } catch (err) {
+              Alert.alert('Error', 'No se pudo cerrar la caja: ' + err.message);
             }
-
-            Alert.alert('✅ Caja cerrada', 'El resumen de hoy quedó guardado correctamente. ¡Hasta mañana!');
-            cargarDatos();
-          } catch(err) {
-            Alert.alert('Error', 'No se pudo cerrar la caja: ' + err.message);
           }
-        }}
+        }
       ]
     );
   };
@@ -140,10 +144,12 @@ export default function Dashboard() {
       'Tendrás que ingresar el PIN de nuevo para entrar a la app.',
       [
         { text: 'Cancelar', style: 'cancel' },
-        { text: 'Cerrar sesión', style: 'destructive', onPress: async () => {
+        {
+          text: 'Cerrar sesión', style: 'destructive', onPress: async () => {
             await SecureStore.deleteItemAsync('sesion_activa');
             router.replace('/pin');
-        }}
+          }
+        }
       ]
     );
   };
@@ -152,18 +158,18 @@ export default function Dashboard() {
     if (pinNuevo !== pinConfirmar) { Alert.alert('Error', 'El PIN nuevo no coincide'); return; }
     if (pinNuevo.length !== 4 || !/^\d+$/.test(pinNuevo)) { Alert.alert('Error', 'El PIN debe ser exactamente 4 dígitos numéricos'); return; }
     if (pinNuevo === '0000') { Alert.alert('Error', 'El PIN no puede ser 0000'); return; }
-    
+
     try {
       const { data } = await supabase.from('configuracion').select('*').single();
       if (!data || data.clave !== pinActual) {
         Alert.alert('Error', 'El PIN actual es incorrecto'); return;
       }
-      
+
       await supabase.from('configuracion').update({ clave: pinNuevo }).eq('id', data.id);
       Alert.alert('✅ PIN actualizado correctamente', 'Se ha guardado tu nuevo PIN.');
       setModalPinVisible(false);
       setPinActual(''); setPinNuevo(''); setPinConfirmar('');
-    } catch(err) {
+    } catch (err) {
       Alert.alert('Error', 'No se pudo actualizar el PIN');
     }
   };
@@ -191,7 +197,7 @@ export default function Dashboard() {
             <Ionicons name="trending-up" size={32} color="#fff" />
             <Text style={styles.cardLabel}>Ganancia Hoy</Text>
           </View>
-          <Text style={styles.cardValue}>{formatPesos(gananciaHoy)}</Text>
+          <Text style={styles.cardValue}>{ocultarSensible(formatPesos(gananciaHoy))}</Text>
         </View>
 
         {/* 2. Total ventas del día */}
