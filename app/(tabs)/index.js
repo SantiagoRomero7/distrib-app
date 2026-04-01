@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
 import { useCallback, useState } from 'react';
 import { Alert, Modal, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useModoDiscreto } from '../../hooks/useModoDiscreto';
@@ -142,12 +141,11 @@ export default function Dashboard() {
   const cerrarSesion = () => {
     mostrarAlerta(
       '¿Cerrar sesión?',
-      'Tendrás que ingresar el PIN de nuevo para entrar a la app.',
+      'Tendrás que ingresar el PIN de nuevo para entrar.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Cerrar sesión', style: 'destructive', onPress: async () => {
-            await SecureStore.deleteItemAsync('sesion_activa');
+          text: 'Cerrar sesión', style: 'destructive', onPress: () => {
             router.replace('/pin');
           }
         }

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { storage } from '../utils/storage';
 import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
 
@@ -39,7 +38,6 @@ export default function PinScreen() {
       
       if (data && data.clave === pinIngresado) {
         feedback.success();
-        await storage.setItem('sesion_activa', 'true');
         router.replace('/(tabs)');
       } else {
         feedback.error();

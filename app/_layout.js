@@ -1,21 +1,31 @@
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { AppState } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { storage } from '../utils/storage';
 import { ModoDiscretoProvider } from '../hooks/useModoDiscreto';
 
 export default function RootLayout() {
   const router = useRouter();
+  const [autenticado, setAutenticado] = useState(false);
 
   useEffect(() => {
-    const verificarSesion = async () => {
-      const sesion = await storage.getItem('sesion_activa');
-      if (!sesion) {
-        router.replace('/pin');
+    // Al abrir la app siempre pedir PIN
+    router.replace('/pin');
+  }, []);
+
+  useEffect(() => {
+    // Cuando la app vuelve del background pedir PIN
+    const subscription = AppState.addEventListener(
+      'change',
+      (nextAppState) => {
+        if (nextAppState === 'background' || nextAppState === 'inactive') {
+          setAutenticado(false);
+          router.replace('/pin');
+        }
       }
-    }
-    verificarSesion();
-  }, [router]);
+    );
+    return () => subscription.remove();
+  }, []);
 
   return (
     <ModoDiscretoProvider>
