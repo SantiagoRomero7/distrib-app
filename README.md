@@ -294,8 +294,7 @@ Se han implementado las siguientes soluciones para garantizar una compatibilidad
 ### Primer inicio
 
 1. Al abrir la app se muestra la pantalla de PIN
-2. **PIN inicial:** `1234`
-3. Puedes cambiar el PIN desde el botón **"Cambiar PIN"** en el dashboard
+2. Puedes cambiar el PIN desde el botón **"Cambiar PIN"** en el dashboard
 
 ### Flujo de trabajo diario
 
@@ -356,7 +355,7 @@ Toca el ícono del **ojo 👁** en la barra superior de cualquier pestaña:
 
 Desarrollado por **Santiago Romero**
 
-- GitHub: [@santiromedev7](https://github.com/santiromedev7)
+- GitHub: [@SantiagoRomero7](https://github.com/SantiagoRomero7)
 - Proyecto: Sistema de gestión para distribuidora de panela — Colombia 🇨🇴
 
 ---
