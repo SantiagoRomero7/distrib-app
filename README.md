@@ -235,8 +235,6 @@ EXPO_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
 EXPO_PUBLIC_SUPABASE_KEY=tu_anon_key_de_supabase
 ```
 
-> ⚠️ El archivo `.env` está incluido en `.gitignore` para proteger tus credenciales.
-
 ### 4. Configurar la base de datos
 
 Ejecuta los siguientes scripts SQL en el **SQL Editor** de tu proyecto en Supabase, en este orden:
