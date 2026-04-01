@@ -1,7 +1,7 @@
 # 🍬 distrib-app
 
 ![Version](https://img.shields.io/badge/versión-1.0.0-green)
-![Platform](https://img.shields.io/badge/plataforma-Android%20%7C%20iOS-blue)
+![Platform](https://img.shields.io/badge/plataforma-Android%20%7C%20iOS%20%7C%20Web-blue)
 ![React Native](https://img.shields.io/badge/React%20Native-0.81-61DAFB?logo=react)
 ![Expo](https://img.shields.io/badge/Expo%20SDK-54-000020?logo=expo)
 ![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?logo=supabase)
@@ -10,18 +10,19 @@
 
 ## 📋 Descripción
 
-**distrib-app** es una aplicación móvil desarrollada para gestionar las operaciones diarias de una distribuidora de panela en Colombia 🇨🇴.
+**distrib-app** es una aplicación multiplataforma (móvil y web) desarrollada para gestionar las operaciones diarias de una distribuidora de panela en Colombia 🇨🇴.
 
-Reemplaza el sistema manual de cuadernos, facturas en papel y cálculos a mano por una solución digital completa que se opera directamente desde el celular. Permite registrar ventas, controlar inventario, gestionar clientes con crédito, generar reportes y cerrar caja — todo desde una interfaz pensada para ser rápida, clara y fácil de usar en el día a día.
+Reemplaza el sistema manual de cuadernos, facturas en papel y cálculos a mano por una solución digital completa que se opera directamente desde el celular o navegador. Permite registrar ventas, controlar inventario, gestionar clientes con crédito, generar reportes y cerrar caja — todo desde una interfaz pensada para ser rápida, clara y fácil de usar en el día a día.
 
 ---
 
 ## ✨ Características principales
 
-### 🔐 Seguridad
-- **Autenticación por PIN de 4 dígitos** — Acceso rápido y seguro sin necesidad de correo ni contraseña
-- **Modo discreto** — Oculta ganancias y precios de compra con un toque al ícono del ojo, ideal cuando hay clientes presentes
-- **Almacenamiento encriptado** — Credenciales de sesión protegidas con `expo-secure-store`
+### 🔐 Seguridad actualizada
+- **PIN requerido siempre** al abrir la app y al volver del background (`AppState`)
+- **Sesión no persistente** por diseño (mayor seguridad)
+- **Modo discreto con botón de ojo en el header**: oculta ganancias y precios de compra con un toque, el precio de venta siempre visible
+- **Almacenamiento encriptado** — Credenciales de sesión protegidas
 
 ### 📦 Productos e Inventario
 - Gestión completa de productos con múltiples tipos de panela (bloque, molida, orgánica, etc.)
@@ -36,38 +37,34 @@ Reemplaza el sistema manual de cuadernos, facturas en papel y cálculos a mano p
 - Verificación automática de stock antes de registrar la venta
 - Alertas de ganancia negativa si se vende por debajo del precio de compra
 - Método de pago: **efectivo** o **transferencia**
-- Soporte para ventas a **crédito (fiado)**
+- Soporte para ventas a crédito
 - Historial completo de ventas agrupadas por transacción
 - Modal de detalle con desglose de productos, cantidades, subtotales y ganancia
 
 ### 👥 Clientes
 - Directorio de clientes con nombre y teléfono
-- **Sistema de crédito (fiado)** con saldo pendiente visible
-- Registro de abonos con nota opcional
-- **Historial completo de pagos** con saldo antes y después de cada abono
+- **Sistema de crédito para clientes** (antes llamado fiado)
+- **Historial completo de abonos** con fecha, saldo antes y saldo después
+- **Detección automática** de deuda saldada
 - Historial de compras por cliente
-- Indicador visual cuando el cliente salda su deuda completamente
 
 ### 📊 Dashboard
 - Resumen del día: ganancia, total vendido, cajas vendidas
 - Desglose de ventas por método de pago (efectivo vs. transferencia)
 - Alertas de productos con stock bajo
 - Listado de clientes con crédito pendiente ordenados por monto
-- **Cierre de caja manual** con registro de hora exacta
-- Cambio de PIN desde configuración
-- Cierre de sesión
+- **Cierre de caja manual** con resumen del día y hora de cierre
 
-### 📈 Reportes
-- **Reporte diario** — Cajas vendidas, total vendido, ganancia, desglose por método de pago
-- **Reporte semanal** — Últimos 7 días con totales acumulados
-- **Reporte mensual** — Todos los días del mes actual con resumen del período
-- Indicador de estado de caja por día (cerrada, abierta, o no cerrada)
+### 📈 Reportes históricos
+- Vistas **diaria, semanal y mensual**
+- **Indicador de caja abierta o cerrada** en reportes
 
-### 🌎 Localización
+### 🌎 Localización y Compatibilidad
 - Zona horaria de Colombia (UTC-5) aplicada en todas las fechas y reportes
-- Formato automático de moneda en **pesos colombianos** ($ 50.000)
+- **Formato automático de moneda colombiana** mientras se escribe ($ 50.000)
 - Todos los textos, alertas y mensajes en **español**
 - Tipografía grande optimizada para facilidad de lectura
+- **Compatibilidad completa con web (PWA) y móvil**
 
 ### ☁️ Sincronización
 - Base de datos en la nube con **Supabase (PostgreSQL)**
@@ -80,43 +77,41 @@ Reemplaza el sistema manual de cuadernos, facturas en papel y cálculos a mano p
 
 | Tecnología | Versión | Uso |
 |---|---|---|
-| [React Native](https://reactnative.dev/) | 0.81.5 | Framework de desarrollo móvil |
+| [React Native](https://reactnative.dev/) | 0.81.5 | Framework de desarrollo |
 | [Expo](https://expo.dev/) | SDK 54 | Plataforma de desarrollo y builds |
 | [Expo Router](https://docs.expo.dev/router/) | 6.x | Navegación basada en archivos |
 | [Supabase](https://supabase.com/) | 2.100+ | PostgreSQL + API REST en la nube |
-| [expo-secure-store](https://docs.expo.dev/versions/latest/sdk/securestore/) | 15.x | Persistencia encriptada (PIN, sesión, modo discreto) |
+| [expo-secure-store](https://docs.expo.dev/versions/latest/sdk/securestore/) | 15.x | Persistencia encriptada |
 | [expo-haptics](https://docs.expo.dev/versions/latest/sdk/haptics/) | 15.x | Feedback táctil |
 | [@expo/vector-icons](https://icons.expo.fyi/) | 15.x | Iconografía (Ionicons) |
 | [React Navigation](https://reactnavigation.org/) | 7.x | Navegación con tabs |
 
 ---
 
-## 📁 Arquitectura del proyecto
+## 📁 Estructura de archivos actualizada
 
 ```
 distrib-app/
 ├── app/
 │   ├── (tabs)/
-│   │   ├── _layout.js        # Navegación con tabs + botón modo discreto
-│   │   ├── index.js           # Dashboard principal
-│   │   ├── ventas.js          # Módulo de ventas
-│   │   ├── inventario.js      # Control de inventario
-│   │   ├── productos.js       # Gestión de productos
-│   │   ├── clientes.js        # Gestión de clientes y créditos
-│   │   └── reportes.js        # Reportes históricos
-│   ├── _layout.js             # Layout raíz con autenticación y provider
-│   ├── pin.js                 # Pantalla de autenticación por PIN
-│   └── utils/                 # (reservado)
+│   │   ├── _layout.js
+│   │   ├── index.js        # Dashboard + cierre de caja
+│   │   ├── ventas.js       # Ventas multi-producto
+│   │   ├── inventario.js   
+│   │   ├── productos.js    
+│   │   ├── clientes.js     # Créditos + historial abonos
+│   │   └── reportes.js     # Diario, semanal, mensual
+│   ├── _layout.js          # Auth + AppState listener
+│   └── pin.js              # PIN siempre requerido
 ├── hooks/
-│   └── useModoDiscreto.js     # Hook + Context del modo discreto
+│   └── useModoDiscreto.js  
 ├── utils/
-│   ├── formatters.js          # Formato de moneda ($ pesos colombianos)
-│   └── fecha.js               # Utilidades de fecha con zona Colombia
-├── supabase.js                # Cliente de Supabase
-├── app.json                   # Configuración de Expo
-├── eas.json                   # Configuración de builds (EAS)
-├── .env                       # Variables de entorno (no versionado)
-└── package.json               # Dependencias del proyecto
+│   ├── formatters.js       
+│   ├── fecha.js            
+│   └── alertHelper.js      # Compatibilidad web/móvil
+├── supabase.js             
+├── .env                    
+└── eas.json                
 ```
 
 ---
@@ -246,84 +241,7 @@ EXPO_PUBLIC_SUPABASE_KEY=tu_anon_key_de_supabase
 
 Ejecuta los siguientes scripts SQL en el **SQL Editor** de tu proyecto en Supabase, en este orden:
 
-```sql
--- 1. Tabla de productos
-CREATE TABLE productos (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  nombre TEXT NOT NULL,
-  tipo TEXT,
-  precio_compra NUMERIC NOT NULL DEFAULT 0,
-  precio_venta NUMERIC NOT NULL DEFAULT 0,
-  creado_en TIMESTAMP WITH TIME ZONE DEFAULT now()
-);
-
--- 2. Tabla de inventario
-CREATE TABLE inventario (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  producto_id UUID REFERENCES productos(id),
-  cantidad NUMERIC NOT NULL DEFAULT 0,
-  unidad TEXT DEFAULT 'cajas',
-  actualizado_en TIMESTAMP WITH TIME ZONE DEFAULT now()
-);
-
--- 3. Tabla de clientes
-CREATE TABLE clientes (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  nombre TEXT NOT NULL,
-  telefono TEXT,
-  saldo_fiado NUMERIC NOT NULL DEFAULT 0
-);
-
--- 4. Tabla de ventas
-CREATE TABLE ventas (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  venta_grupo UUID,
-  producto_id UUID REFERENCES productos(id),
-  cliente_id UUID REFERENCES clientes(id),
-  cantidad INTEGER NOT NULL,
-  precio_unitario NUMERIC NOT NULL,
-  precio_compra_unitario NUMERIC NOT NULL DEFAULT 0,
-  total NUMERIC NOT NULL,
-  ganancia NUMERIC NOT NULL DEFAULT 0,
-  es_fiado BOOLEAN DEFAULT false,
-  metodo_pago TEXT DEFAULT 'efectivo',
-  fecha TIMESTAMP WITH TIME ZONE DEFAULT now()
-);
-
--- 5. Tabla de pagos a crédito
-CREATE TABLE pagos_fiado (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  cliente_id UUID REFERENCES clientes(id),
-  monto_abono NUMERIC NOT NULL,
-  saldo_antes NUMERIC NOT NULL,
-  saldo_despues NUMERIC NOT NULL,
-  nota TEXT,
-  fecha TIMESTAMP WITH TIME ZONE DEFAULT now()
-);
-
--- 6. Tabla de resumen diario
-CREATE TABLE resumen_diario (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  fecha DATE NOT NULL UNIQUE,
-  total_cajas NUMERIC DEFAULT 0,
-  total_ventas NUMERIC DEFAULT 0,
-  total_ganancia NUMERIC DEFAULT 0,
-  total_efectivo NUMERIC DEFAULT 0,
-  total_transferencia NUMERIC DEFAULT 0,
-  cantidad_ventas INTEGER DEFAULT 0,
-  caja_cerrada BOOLEAN DEFAULT false,
-  hora_cierre TIMESTAMP WITH TIME ZONE
-);
-
--- 7. Tabla de configuración (PIN)
-CREATE TABLE configuracion (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  clave TEXT NOT NULL DEFAULT '1234'
-);
-
--- 8. Insertar PIN inicial
-INSERT INTO configuracion (clave) VALUES ('1234');
-```
+*(Mismos scripts SQL referenciados previamente: Tablas de productos, inventario, clientes, ventas, pagos_fiado, resumen_diario, y configuracion)*
 
 ### 5. Iniciar en modo desarrollo
 
@@ -335,24 +253,41 @@ Escanea el QR con **Expo Go** en tu celular o ejecuta en un emulador.
 
 ---
 
-## 📱 Compilación para producción
+## 🚀 Despliegue
 
-### Android (APK / AAB)
+### PWA para iPhone (gratis)
+
+1. Exportar para web:
+   ```bash
+   npx expo export -p web
+   ```
+2. Subir a GitHub:
+   ```bash
+   git push origin main
+   ```
+3. Vercel despliega automáticamente
+4. En iPhone abrir Safari y entrar a la URL
+5. Tocar compartir → "Agregar a pantalla de inicio"
+6. Listo, funciona como app nativa sin App Store
+
+**URL de producción:** https://distrib-app.vercel.app
+
+### Android (APK)
 
 ```bash
-# APK para instalar directamente
 eas build -p android --profile preview
-
-# AAB para Google Play Store
-eas build -p android --profile production
 ```
+Descargar e instalar el APK desde el enlace de Expo.
 
-### iOS
+---
 
-```bash
-# Requiere cuenta Apple Developer ($99/año)
-eas build -p ios --profile preview
-```
+## 🔄 Compatibilidad web vs móvil
+
+Se han implementado las siguientes soluciones para garantizar una compatibilidad completa entre entornos web y nativo:
+
+- `expo-secure-store` reemplazado por un *storage helper* que usa `localStorage` en web y `SecureStore` en móvil.
+- `Alert.alert()` reemplazado por `mostrarAlerta()` helper que usa `window.confirm`/`window.alert` en web y `Alert` en móvil.
+- `expo-haptics` envuelto en verificación de plataforma para evitar errores en web.
 
 ---
 
@@ -388,30 +323,34 @@ Toca el ícono del **ojo 👁** en la barra superior de cualquier pestaña:
 
 ---
 
-## 🔒 Seguridad
+## 🔒 Seguridad actualizada
 
-| Aspecto | Implementación |
-|---|---|
-| Acceso a la app | PIN de 4 dígitos numéricos |
-| Almacenamiento de sesión | `expo-secure-store` (encriptación nativa del OS) |
-| Credenciales de Supabase | Variables de entorno (`.env` excluido del repo) |
-| Modo discreto | Estado encriptado en `SecureStore` |
-| Base de datos | Row Level Security disponible en Supabase |
+- **PIN requerido siempre** al abrir la app.
+- **PIN requerido al volver del background** (`AppState`).
+- **Sesión no persistente por diseño** (mayor seguridad y evitando estados obsoletos o expuestos).
+- **Modo discreto** para ocultar información sensible frente a clientes.
 
 ---
 
-## 🗺 Roadmap
+## 🗺 Roadmap actualizado
 
-Funcionalidades planeadas para versiones futuras:
+**Completado ✅:**
+- PWA desplegada en Vercel para iPhone
+- APK compilado para Android
+- Autenticación por PIN siempre activa
+- Modo discreto para clientes
+- Reportes históricos completos
+- Cierre de caja manual
+- Sistema de créditos con historial
 
-- [ ] 🍎 Publicación en App Store para iPhone
-- [ ] 🔔 Notificaciones push para alertas de stock bajo
-- [ ] 📄 Exportar reportes a PDF
-- [ ] 📲 Enviar resumen diario por WhatsApp
-- [ ] 💾 Copias de seguridad automáticas
-- [ ] 🏪 Soporte para múltiples sucursales
-- [ ] 📊 Gráficos de tendencias de ventas
-- [ ] 🧾 Generación de facturas digitales
+**Pendiente 🔜:**
+- Publicación en App Store (requiere $99/año Apple)
+- Notificaciones push para stock bajo
+- Exportar reportes a PDF
+- Enviar resumen diario por WhatsApp
+- Copias de seguridad automáticas
+- Soporte para múltiples usuarios con roles
+- Soporte para múltiples sucursales
 
 ---
 
