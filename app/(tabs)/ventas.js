@@ -19,6 +19,7 @@ import { useModoDiscreto } from '../../hooks/useModoDiscreto';
 import { supabase } from '../../supabase';
 import { ahoraEnColombia, fechaHoyColombia, formatearFecha, formatearFechaCorta } from '../../utils/fecha';
 import { formatInputPesos, formatPesos, parsePesos } from '../../utils/formatters';
+import { mostrarAlerta } from '../../utils/alertHelper';
 
 const generarUUID = () => {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
@@ -122,8 +123,8 @@ export default function Ventas() {
 
   const iniciarRegistroVenta = async () => {
     const itemsValidos = items.filter(it => it.producto && it.cantidad && Number(it.cantidad) > 0);
-    if (itemsValidos.length === 0) { Alert.alert('Error', 'Agrega al menos un producto con cantidad'); return; }
-    if (esFiado && !clienteSel) { Alert.alert('Error', 'Para crédito debes seleccionar un cliente'); return; }
+    if (itemsValidos.length === 0) { mostrarAlerta('Error', 'Agrega al menos un producto con cantidad'); return; }
+    if (esFiado && !clienteSel) { mostrarAlerta('Error', 'Para crédito debes seleccionar un cliente'); return; }
 
     verificarGanancia(itemsValidos, fechaHoyColombia());
   };
@@ -132,7 +133,7 @@ export default function Ventas() {
     let gananciaNegativa = false;
     for (const it of itemsValidos) {
       if (!it.precio_aplicado || parsePesos(it.precio_aplicado) <= 0) {
-        Alert.alert('Error', `El precio aplicado para ${it.producto.nombre} no puede ser 0 o menor.`);
+        mostrarAlerta('Error', `El precio aplicado para ${it.producto.nombre} no puede ser 0 o menor.`);
         return;
       }
       if (parsePesos(it.precio_aplicado) < Number(it.producto.precio_compra)) {
@@ -141,7 +142,7 @@ export default function Ventas() {
     }
 
     if (gananciaNegativa) {
-      Alert.alert(
+      mostrarAlerta(
         '⚠ Atención',
         'Estás vendiendo por debajo del precio de compra. ¿Confirmar de todas formas?',
         [
@@ -197,7 +198,7 @@ export default function Ventas() {
       const stockActual = inv ? Number(inv.cantidad) : 0;
       if (cantNum > stockActual) {
         setCargando(false);
-        Alert.alert('Stock insuficiente', `Stock insuficiente para ${it.producto.nombre}.\nDisponible: ${stockActual} cajas, pedido: ${cantNum}`);
+        mostrarAlerta('Stock insuficiente', `Stock insuficiente para ${it.producto.nombre}.\nDisponible: ${stockActual} cajas, pedido: ${cantNum}`);
         return;
       }
     }
@@ -224,7 +225,7 @@ export default function Ventas() {
         total: subtotal, ganancia, es_fiado: esFiado, fecha,
         metodo_pago: metodoPago
       }]);
-      if (errVenta) { hayError = true; Alert.alert('Error', errVenta.message); break; }
+      if (errVenta) { hayError = true; mostrarAlerta('Error', errVenta.message); break; }
 
       const { data: inv } = await supabase.from('inventario').select('id, cantidad').eq('producto_id', it.producto.id).single();
       if (inv) {
@@ -242,7 +243,7 @@ export default function Ventas() {
 
     setCargando(false);
     if (!hayError) {
-      Alert.alert('Éxito', 'Venta registrada correctamente.');
+      mostrarAlerta('Éxito', 'Venta registrada correctamente.');
       setModalVisible(false);
       cargarDatos();
     }

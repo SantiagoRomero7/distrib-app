@@ -17,6 +17,7 @@ import {
 import { supabase } from '../../supabase';
 import { formatearFecha } from '../../utils/fecha';
 import { formatInputPesos, formatPesos, parsePesos } from '../../utils/formatters';
+import { mostrarAlerta } from '../../utils/alertHelper';
 
 export default function Clientes() {
   const [clientes, setClientes] = useState([]);
@@ -41,7 +42,7 @@ export default function Clientes() {
 
   const cargarClientes = async () => {
     const { data, error } = await supabase.from('clientes').select('*').order('nombre');
-    if (error) Alert.alert('Error', error.message);
+    if (error) mostrarAlerta('Error', error.message);
     else setClientes(data || []);
   };
 
@@ -49,7 +50,7 @@ export default function Clientes() {
   const onRefresh = async () => { setRefreshing(true); await cargarClientes(); setRefreshing(false); };
 
   const guardarCliente = async () => {
-    if (!nombre.trim()) { Alert.alert('Error', 'El nombre es obligatorio'); return; }
+    if (!nombre.trim()) { mostrarAlerta('Error', 'El nombre es obligatorio'); return; }
     setCargando(true);
     const datos = { nombre: nombre.trim(), telefono: telefono.trim() };
     let error;
@@ -59,18 +60,18 @@ export default function Clientes() {
       ({ error } = await supabase.from('clientes').insert([datos]));
     }
     setCargando(false);
-    if (error) Alert.alert('Error', error.message);
-    else { Alert.alert('Éxito', editando ? 'Cliente actualizado' : 'Cliente creado'); setModalNuevo(false); cargarClientes(); }
+    if (error) mostrarAlerta('Error', error.message);
+    else { mostrarAlerta('Éxito', editando ? 'Cliente actualizado' : 'Cliente creado'); setModalNuevo(false); cargarClientes(); }
   };
 
   const eliminarCliente = (c) => {
-    Alert.alert('Eliminar', `¿Eliminar a "${c.nombre}"?`, [
+    mostrarAlerta('Eliminar', `¿Eliminar a "${c.nombre}"?`, [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Eliminar', style: 'destructive', onPress: async () => {
           const { error } = await supabase.from('clientes').delete().eq('id', c.id);
-          if (error) Alert.alert('Error', error.message);
-          else { Alert.alert('Listo', 'Cliente eliminado'); cargarClientes(); }
+          if (error) mostrarAlerta('Error', error.message);
+          else { mostrarAlerta('Listo', 'Cliente eliminado'); cargarClientes(); }
         }
       },
     ]);
@@ -96,7 +97,7 @@ export default function Clientes() {
   const registrarPago = async () => {
     const montoAbono = parsePesos(montoPago);
     if (montoAbono <= 0) {
-      Alert.alert('Error', 'Ingresa un monto válido');
+      mostrarAlerta('Error', 'Ingresa un monto válido');
       return;
     }
     const saldoAntes = Number(clienteSel.saldo_fiado);
@@ -115,7 +116,7 @@ export default function Clientes() {
 
     if (errPago) {
       setCargando(false);
-      Alert.alert('Error', errPago.message);
+      mostrarAlerta('Error', errPago.message);
       return;
     }
 
@@ -124,12 +125,12 @@ export default function Clientes() {
     setCargando(false);
 
     if (errCli) {
-      Alert.alert('Error', errCli.message);
+      mostrarAlerta('Error', errCli.message);
     } else {
       if (saldoDespues === 0) {
-        Alert.alert('Éxito', `🎉 ¡${clienteSel.nombre} terminó de pagar su deuda!`);
+        mostrarAlerta('Éxito', `🎉 ¡${clienteSel.nombre} terminó de pagar su deuda!`);
       } else {
-        Alert.alert('Éxito', `Abono registrado. Saldo pendiente: ${formatPesos(saldoDespues)}`);
+        mostrarAlerta('Éxito', `Abono registrado. Saldo pendiente: ${formatPesos(saldoDespues)}`);
       }
       setModalPago(false);
       cargarClientes();

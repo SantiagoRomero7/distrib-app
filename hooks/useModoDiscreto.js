@@ -1,6 +1,7 @@
-import * as SecureStore from 'expo-secure-store';
+import { storage } from '../utils/storage';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { Alert, Platform, ToastAndroid } from 'react-native';
+import { mostrarAlerta } from '../utils/alertHelper';
 
 const STORAGE_KEY = 'modo_discreto';
 
@@ -14,7 +15,7 @@ const showToast = (mensaje) => {
   if (Platform.OS === 'android') {
     ToastAndroid.show(mensaje, ToastAndroid.SHORT);
   } else {
-    Alert.alert(mensaje);
+    mostrarAlerta(mensaje);
   }
 };
 
@@ -24,7 +25,7 @@ export const ModoDiscretoProvider = ({ children }) => {
   useEffect(() => {
     (async () => {
       try {
-        const valor = await SecureStore.getItemAsync(STORAGE_KEY);
+        const valor = await storage.getItem(STORAGE_KEY);
         if (valor === 'true') setDiscreto(true);
       } catch (e) {
         console.error('Error cargando modo discreto:', e);
@@ -35,7 +36,7 @@ export const ModoDiscretoProvider = ({ children }) => {
   const toggleDiscreto = async () => {
     try {
       const nuevoValor = !discreto;
-      await SecureStore.setItemAsync(STORAGE_KEY, nuevoValor.toString());
+      await storage.setItem(STORAGE_KEY, nuevoValor.toString());
       setDiscreto(nuevoValor);
       showToast(nuevoValor ? 'Modo discreto activado' : 'Modo discreto desactivado');
     } catch (e) {

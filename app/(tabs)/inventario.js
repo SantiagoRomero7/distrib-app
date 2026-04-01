@@ -7,6 +7,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { supabase } from '../../supabase';
+import { mostrarAlerta } from '../../utils/alertHelper';
 
 export default function Inventario() {
   const [inventario, setInventario] = useState([]);
@@ -31,8 +32,8 @@ export default function Inventario() {
   const onRefresh = async () => { setRefreshing(true); await cargarDatos(); setRefreshing(false); };
 
   const registrarEntrada = async () => {
-    if (!productoSel) { Alert.alert('Error', 'Selecciona un producto'); return; }
-    if (!cantidad || Number(cantidad) <= 0) { Alert.alert('Error', 'Ingresa una cantidad válida'); return; }
+    if (!productoSel) { mostrarAlerta('Error', 'Selecciona un producto'); return; }
+    if (!cantidad || Number(cantidad) <= 0) { mostrarAlerta('Error', 'Ingresa una cantidad válida'); return; }
     setCargando(true);
     const cantNum = Number(cantidad);
     const { data: existente } = await supabase.from('inventario').select('id, cantidad').eq('producto_id', productoSel.id).single();
@@ -43,8 +44,8 @@ export default function Inventario() {
       ({ error } = await supabase.from('inventario').insert([{ producto_id: productoSel.id, cantidad: cantNum, unidad: 'cajas' }]));
     }
     setCargando(false);
-    if (error) { Alert.alert('Error', error.message); } else {
-      Alert.alert('Éxito', `Se agregaron ${cantNum} cajas de ${productoSel.nombre}`);
+    if (error) { mostrarAlerta('Error', error.message); } else {
+      mostrarAlerta('Éxito', `Se agregaron ${cantNum} cajas de ${productoSel.nombre}`);
       setModalVisible(false); cargarDatos();
     }
   };

@@ -1,8 +1,22 @@
 import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
+import { storage } from '../utils/storage';
 import * as Haptics from 'expo-haptics';
+import { Platform } from 'react-native';
+
+const feedback = {
+  error: () => {
+    if (Platform.OS !== 'web') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
+  },
+  success: () => {
+    if (Platform.OS !== 'web') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+  }
+};
 import { supabase } from '../supabase';
 
 export default function PinScreen() {
@@ -24,11 +38,11 @@ export default function PinScreen() {
         .single();
       
       if (data && data.clave === pinIngresado) {
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        await SecureStore.setItemAsync('sesion_activa', 'true');
+        feedback.success();
+        await storage.setItem('sesion_activa', 'true');
         router.replace('/(tabs)');
       } else {
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        feedback.error();
         setPin('');
         setErrorStr('PIN incorrecto, intenta de nuevo');
         setTimeout(() => setErrorStr(''), 2000);

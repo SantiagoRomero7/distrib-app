@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import * as SecureStore from 'expo-secure-store';
+import { storage } from '../utils/storage';
 import { ModoDiscretoProvider } from '../hooks/useModoDiscreto';
 
 export default function RootLayout() {
@@ -9,7 +9,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     const verificarSesion = async () => {
-      const sesion = await SecureStore.getItemAsync('sesion_activa');
+      const sesion = await storage.getItem('sesion_activa');
       if (!sesion) {
         router.replace('/pin');
       }

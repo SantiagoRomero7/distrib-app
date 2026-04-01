@@ -18,6 +18,7 @@ import {
 import { useModoDiscreto } from '../../hooks/useModoDiscreto';
 import { supabase } from '../../supabase';
 import { formatInputPesos, formatPesos, parsePesos } from '../../utils/formatters';
+import { mostrarAlerta } from '../../utils/alertHelper';
 
 export default function Productos() {
   const [productos, setProductos] = useState([]);
@@ -38,7 +39,7 @@ export default function Productos() {
       .order('creado_en', { ascending: false });
 
     if (error) {
-      Alert.alert('Error', 'No se pudieron cargar los productos: ' + error.message);
+      mostrarAlerta('Error', 'No se pudieron cargar los productos: ' + error.message);
     } else {
       setProductos(data || []);
     }
@@ -80,11 +81,11 @@ export default function Productos() {
 
   const guardarProducto = async () => {
     if (!nombre.trim()) {
-      Alert.alert('Error', 'El nombre del producto es obligatorio');
+      mostrarAlerta('Error', 'El nombre del producto es obligatorio');
       return;
     }
     if (!precioCompra || !precioVenta) {
-      Alert.alert('Error', 'Los precios son obligatorios');
+      mostrarAlerta('Error', 'Los precios son obligatorios');
       return;
     }
 
@@ -107,16 +108,16 @@ export default function Productos() {
     setCargando(false);
 
     if (error) {
-      Alert.alert('Error', 'No se pudo guardar: ' + error.message);
+      mostrarAlerta('Error', 'No se pudo guardar: ' + error.message);
     } else {
-      Alert.alert('Éxito', editando ? 'Producto actualizado' : 'Producto creado');
+      mostrarAlerta('Éxito', editando ? 'Producto actualizado' : 'Producto creado');
       cerrarModal();
       cargarProductos();
     }
   };
 
   const eliminarProducto = (producto) => {
-    Alert.alert(
+    mostrarAlerta(
       'Eliminar Producto',
       `¿Seguro que deseas eliminar "${producto.nombre}"?`,
       [
@@ -128,20 +129,20 @@ export default function Productos() {
             // Check for related ventas
             const { data: ventasRel } = await supabase.from('ventas').select('id').eq('producto_id', producto.id).limit(1);
             if (ventasRel && ventasRel.length > 0) {
-              Alert.alert('No se puede eliminar', 'Este producto tiene ventas registradas. No se puede eliminar.');
+              mostrarAlerta('No se puede eliminar', 'Este producto tiene ventas registradas. No se puede eliminar.');
               return;
             }
             // Check for related inventario
             const { data: invRel } = await supabase.from('inventario').select('id').eq('producto_id', producto.id).limit(1);
             if (invRel && invRel.length > 0) {
-              Alert.alert('No se puede eliminar', 'Este producto tiene inventario registrado. No se puede eliminar.');
+              mostrarAlerta('No se puede eliminar', 'Este producto tiene inventario registrado. No se puede eliminar.');
               return;
             }
             const { error } = await supabase.from('productos').delete().eq('id', producto.id);
             if (error) {
-              Alert.alert('Error', 'No se pudo eliminar: ' + error.message);
+              mostrarAlerta('Error', 'No se pudo eliminar: ' + error.message);
             } else {
-              Alert.alert('Listo', 'Producto eliminado');
+              mostrarAlerta('Listo', 'Producto eliminado');
               cargarProductos();
             }
           },

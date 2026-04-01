@@ -7,6 +7,7 @@ import { useModoDiscreto } from '../../hooks/useModoDiscreto';
 import { supabase } from '../../supabase';
 import { ahoraEnColombia, fechaHoyColombia, formatearFecha } from '../../utils/fecha';
 import { formatPesos } from '../../utils/formatters';
+import { mostrarAlerta } from '../../utils/alertHelper';
 
 export default function Dashboard() {
   const [gananciaHoy, setGananciaHoy] = useState(0);
@@ -91,7 +92,7 @@ export default function Dashboard() {
   };
 
   const cerrarCaja = async () => {
-    Alert.alert(
+    mostrarAlerta(
       '¿Cerrar caja?',
       `Al cerrar la caja quedará guardado el resumen de hoy. Podrás seguir viendo los reportes pero no se sumará más a este día.\n\nResumen de hoy:\n📦 Cajas vendidas: ${cajasHoy}\n💰 Total vendido: ${formatPesos(totalVentasHoy)}\n📈 Ganancia: ${ocultarSensible(formatPesos(gananciaHoy))}`,
       [
@@ -127,10 +128,10 @@ export default function Dashboard() {
                 }).eq('fecha', hoy);
               }
 
-              Alert.alert('✅ Caja cerrada', 'El resumen de hoy quedó guardado correctamente. ¡Hasta mañana!');
+              mostrarAlerta('✅ Caja cerrada', 'El resumen de hoy quedó guardado correctamente. ¡Hasta mañana!');
               cargarDatos();
             } catch (err) {
-              Alert.alert('Error', 'No se pudo cerrar la caja: ' + err.message);
+              mostrarAlerta('Error', 'No se pudo cerrar la caja: ' + err.message);
             }
           }
         }
@@ -139,7 +140,7 @@ export default function Dashboard() {
   };
 
   const cerrarSesion = () => {
-    Alert.alert(
+    mostrarAlerta(
       '¿Cerrar sesión?',
       'Tendrás que ingresar el PIN de nuevo para entrar a la app.',
       [
@@ -155,22 +156,22 @@ export default function Dashboard() {
   };
 
   const guardarNuevoPin = async () => {
-    if (pinNuevo !== pinConfirmar) { Alert.alert('Error', 'El PIN nuevo no coincide'); return; }
-    if (pinNuevo.length !== 4 || !/^\d+$/.test(pinNuevo)) { Alert.alert('Error', 'El PIN debe ser exactamente 4 dígitos numéricos'); return; }
-    if (pinNuevo === '0000') { Alert.alert('Error', 'El PIN no puede ser 0000'); return; }
+    if (pinNuevo !== pinConfirmar) { mostrarAlerta('Error', 'El PIN nuevo no coincide'); return; }
+    if (pinNuevo.length !== 4 || !/^\d+$/.test(pinNuevo)) { mostrarAlerta('Error', 'El PIN debe ser exactamente 4 dígitos numéricos'); return; }
+    if (pinNuevo === '0000') { mostrarAlerta('Error', 'El PIN no puede ser 0000'); return; }
 
     try {
       const { data } = await supabase.from('configuracion').select('*').single();
       if (!data || data.clave !== pinActual) {
-        Alert.alert('Error', 'El PIN actual es incorrecto'); return;
+        mostrarAlerta('Error', 'El PIN actual es incorrecto'); return;
       }
 
       await supabase.from('configuracion').update({ clave: pinNuevo }).eq('id', data.id);
-      Alert.alert('✅ PIN actualizado correctamente', 'Se ha guardado tu nuevo PIN.');
+      mostrarAlerta('✅ PIN actualizado correctamente', 'Se ha guardado tu nuevo PIN.');
       setModalPinVisible(false);
       setPinActual(''); setPinNuevo(''); setPinConfirmar('');
     } catch (err) {
-      Alert.alert('Error', 'No se pudo actualizar el PIN');
+      mostrarAlerta('Error', 'No se pudo actualizar el PIN');
     }
   };
 
