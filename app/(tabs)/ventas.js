@@ -33,22 +33,21 @@ const crearItemVacio = () => ({ id: Date.now(), producto: null, cantidad: '', pr
 export default function Ventas() {
   const [ventasAgrupadas, setVentasAgrupadas] = useState([]);
   const [productos, setProductos] = useState([]);
-  const [clientes, setClientes] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalDetalleVisible, setModalDetalleVisible] = useState(false);
   const [ventaSel, setVentaSel] = useState(null);
   const [items, setItems] = useState([crearItemVacio()]);
-  const [clienteSel, setClienteSel] = useState(null);
+  const [clienteNombre, setClienteNombre] = useState('');
+  const [sugerenciasClientes, setSugerenciasClientes] = useState([]);
   const [esFiado, setEsFiado] = useState(false);
   const [metodoPago, setMetodoPago] = useState('efectivo');
   const [refreshing, setRefreshing] = useState(false);
   const [cargando, setCargando] = useState(false);
-  const [showClients, setShowClients] = useState(false);
   const { ocultarSensible } = useModoDiscreto();
 
   const cargarDatos = async () => {
     const { data: v, error } = await supabase.from('ventas')
-      .select('*, productos(nombre), clientes(nombre)')
+      .select('*, productos(nombre, tipo), clientes(nombre)')
       .order('fecha', { ascending: false })
       .limit(300);
 
@@ -87,12 +86,50 @@ export default function Ventas() {
 
     const { data: p } = await supabase.from('productos').select('*').order('nombre');
     if (p) setProductos(p);
-    const { data: c } = await supabase.from('clientes').select('id, nombre, saldo_fiado').order('nombre');
-    if (c) setClientes(c);
   };
 
   useFocusEffect(useCallback(() => { cargarDatos(); }, []));
   const onRefresh = async () => { setRefreshing(true); await cargarDatos(); setRefreshing(false); };
+
+  const buscarCliente = async (texto) => {
+    setClienteNombre(texto);
+    if (texto.length < 2) {
+      setSugerenciasClientes([]);
+      return;
+    }
+    const { data } = await supabase
+      .from('clientes')
+      .select('id, nombre, saldo_fiado')
+      .ilike('nombre', `%${texto}%`)
+      .limit(5);
+    setSugerenciasClientes(data || []);
+  };
+
+  const obtenerOCrearCliente = async (nombreABuscar) => {
+    if (!nombreABuscar || nombreABuscar.trim() === '') return null;
+    
+    // Buscar si ya existe exacto o casi exacto
+    const { data: existente } = await supabase
+      .from('clientes')
+      .select('id, saldo_fiado')
+      .ilike('nombre', nombreABuscar.trim())
+      .single();
+    
+    if (existente) return { id: existente.id, saldo_fiado: existente.saldo_fiado || 0 };
+    
+    // Crear nuevo cliente
+    const { data: nuevo, error } = await supabase
+      .from('clientes')
+      .insert({ nombre: nombreABuscar.trim() })
+      .select('id, saldo_fiado')
+      .single();
+    
+    if (error) {
+      console.error(error);
+      return null;
+    }
+    return { id: nuevo.id, saldo_fiado: 0 };
+  };
 
   // Calculations
   const calcularSubtotal = (item) => {
@@ -124,7 +161,7 @@ export default function Ventas() {
   const iniciarRegistroVenta = async () => {
     const itemsValidos = items.filter(it => it.producto && it.cantidad && Number(it.cantidad) > 0);
     if (itemsValidos.length === 0) { mostrarAlerta('Error', 'Agrega al menos un producto con cantidad'); return; }
-    if (esFiado && !clienteSel) { mostrarAlerta('Error', 'Para crédito debes seleccionar un cliente'); return; }
+    if (esFiado && (!clienteNombre || clienteNombre.trim() === '')) { mostrarAlerta('Error', 'Para crédito debes escribir o seleccionar el nombre de un cliente'); return; }
 
     verificarGanancia(itemsValidos, fechaHoyColombia());
   };
@@ -198,10 +235,14 @@ export default function Ventas() {
       const stockActual = inv ? Number(inv.cantidad) : 0;
       if (cantNum > stockActual) {
         setCargando(false);
-        mostrarAlerta('Stock insuficiente', `Stock insuficiente para ${it.producto.nombre}.\nDisponible: ${stockActual} cajas, pedido: ${cantNum}`);
+        mostrarAlerta('Stock insuficiente', `Stock insuficiente para ${it.producto.nombre} — ${it.producto.tipo || ''}.\nDisponible: ${stockActual} cajas, pedido: ${cantNum}`);
         return;
       }
     }
+
+    const clienteObj = await obtenerOCrearCliente(clienteNombre);
+    const clienteIdSel = clienteObj?.id || null;
+    const clienteSaldoActual = clienteObj?.saldo_fiado || 0;
 
     const fecha = ahoraEnColombia().toISOString();
     const grupoId = generarUUID();
@@ -218,7 +259,7 @@ export default function Ventas() {
       const { error: errVenta } = await supabase.from('ventas').insert([{
         venta_grupo: grupoId,
         producto_id: it.producto.id,
-        cliente_id: clienteSel?.id || null,
+        cliente_id: clienteIdSel,
         cantidad: cantNum,
         precio_unitario: precioAplicado,
         precio_compra_unitario: Number(it.producto.precio_compra),
@@ -233,8 +274,8 @@ export default function Ventas() {
       }
     }
 
-    if (!hayError && esFiado && clienteSel) {
-      await supabase.from('clientes').update({ saldo_fiado: Number(clienteSel.saldo_fiado) + totalGeneral }).eq('id', clienteSel.id);
+    if (!hayError && esFiado && clienteIdSel) {
+      await supabase.from('clientes').update({ saldo_fiado: Number(clienteSaldoActual) + totalGeneral }).eq('id', clienteIdSel);
     }
 
     if (!hayError) {
@@ -251,7 +292,7 @@ export default function Ventas() {
 
   const abrirModalFormulario = () => {
     setItems([crearItemVacio()]);
-    setClienteSel(null); setEsFiado(false); setShowClients(false); setMetodoPago('efectivo');
+    setClienteNombre(''); setSugerenciasClientes([]); setEsFiado(false); setMetodoPago('efectivo');
     setModalVisible(true);
   };
 
@@ -292,7 +333,7 @@ export default function Ventas() {
 
         <TouchableOpacity style={s.selector} onPress={() => actualizarItem(item.id, 'showPicker', !item.showPicker)}>
           <Text style={item.producto ? s.selText : s.selPlaceholder}>
-            {item.producto ? item.producto.nombre : 'Seleccionar producto...'}
+            {item.producto ? `${item.producto.nombre} — ${item.producto.tipo || 'General'}` : 'Seleccionar producto...'}
           </Text>
           <Ionicons name={item.showPicker ? 'chevron-up' : 'chevron-down'} size={24} color="#666" />
         </TouchableOpacity>
@@ -301,7 +342,7 @@ export default function Ventas() {
           <ScrollView style={{ maxHeight: 150 }} nestedScrollEnabled>
             {productos.map((p) => (
               <TouchableOpacity key={p.id} style={[s.opt, item.producto?.id === p.id && s.optSel]} onPress={() => seleccionarProducto(item.id, p)}>
-                <View><Text style={s.optText}>{p.nombre}</Text><Text style={s.optPrice}>Venta: {formatPesos(p.precio_venta)}</Text></View>
+                <View><Text style={s.optText}>{p.nombre} — {p.tipo || 'General'}</Text><Text style={s.optPrice}>Venta: {formatPesos(p.precio_venta)}</Text></View>
                 {item.producto?.id === p.id && <Ionicons name="checkmark-circle" size={26} color="#2d6a4f" />}
               </TouchableOpacity>
             ))}
@@ -365,7 +406,7 @@ export default function Ventas() {
                 <View style={s.calcBox}>
                   {items.filter(it => it.producto && it.cantidad && it.precio_aplicado).map((it, i) => (
                     <View key={it.id} style={s.calcRow}>
-                      <Text style={s.calcLabel} numberOfLines={1}>{it.producto.nombre} × {it.cantidad}</Text>
+                      <Text style={s.calcLabel} numberOfLines={1}>{it.producto.nombre} — {it.producto.tipo || 'General'} × {it.cantidad}</Text>
                       <Text style={s.calcVal}>{formatPesos(calcularSubtotal(it))}</Text>
                     </View>
                   ))}
@@ -378,23 +419,22 @@ export default function Ventas() {
                 </View>
               )}
 
-              <Text style={s.label}>Cliente (opcional)</Text>
-              <TouchableOpacity style={s.selector} onPress={() => setShowClients(!showClients)}>
-                <Text style={clienteSel ? s.selText : s.selPlaceholder}>{clienteSel ? clienteSel.nombre : 'Sin cliente'}</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  {clienteSel && <TouchableOpacity onPress={() => setClienteSel(null)}><Ionicons name="close-circle" size={26} color="#999" /></TouchableOpacity>}
-                  <Ionicons name={showClients ? 'chevron-up' : 'chevron-down'} size={24} color="#666" />
-                </View>
-              </TouchableOpacity>
-              {showClients && (
-                <ScrollView style={{ maxHeight: 150 }} nestedScrollEnabled>
-                  {clientes.map((c) => (
-                    <TouchableOpacity key={c.id} style={[s.opt, clienteSel?.id === c.id && s.optSel]} onPress={() => { setClienteSel(c); setShowClients(false); }}>
+              <Text style={s.label}>Nombre del cliente (opcional)</Text>
+              <TextInput 
+                style={s.input} 
+                value={clienteNombre} 
+                onChangeText={buscarCliente} 
+                placeholder="Escribe el nombre aquí" 
+                placeholderTextColor="#aaa" 
+              />
+              {sugerenciasClientes.length > 0 && (
+                <ScrollView style={{ maxHeight: 150, marginTop: 8 }} nestedScrollEnabled>
+                  {sugerenciasClientes.map((c) => (
+                    <TouchableOpacity key={c.id} style={s.opt} onPress={() => { setClienteNombre(c.nombre); setSugerenciasClientes([]); }}>
                       <Text style={s.optText}>{c.nombre}</Text>
-                      {clienteSel?.id === c.id && <Ionicons name="checkmark-circle" size={26} color="#2d6a4f" />}
+                      <Ionicons name="add-circle-outline" size={26} color="#666" />
                     </TouchableOpacity>
                   ))}
-                  {clientes.length === 0 && <Text style={{ color: '#999', textAlign: 'center', padding: 16, fontSize: 18 }}>No hay clientes</Text>}
                 </ScrollView>
               )}
 
@@ -452,7 +492,7 @@ export default function Ventas() {
 
                 {ventaSel.items.map((it) => (
                   <View key={it.id} style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#eee' }}>
-                    <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#333' }}>{it.productos?.nombre}</Text>
+                    <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#333' }}>{it.productos?.nombre} — {it.productos?.tipo || 'General'}</Text>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
                       <Text style={{ fontSize: 16, color: '#666' }}>{it.cantidad} cajas</Text>
                       <Text style={{ fontSize: 16, color: '#444' }}>{formatPesos(it.precio_unitario)} / caja</Text>
