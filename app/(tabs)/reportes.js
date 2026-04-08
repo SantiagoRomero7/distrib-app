@@ -35,8 +35,7 @@ export default function Reportes() {
 
       // 3. Cargar Mes (filtro de este mes mediante JS debido a limitaciones en selectrices básicas, o limitando)
       // O hacer query >= primer día del mes
-      const hoy = new Date();
-      const inicioMesStr = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
+      const inicioMesStr = `${hoyIso.substring(0, 8)}01`;
       const { data: mes } = await supabase
         .from('resumen_diario')
         .select('*')

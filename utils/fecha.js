@@ -5,16 +5,15 @@ export const ahoraEnColombia = () => {
 
 export const fechaHoyColombia = () => {
   const d = new Date()
-  const utc = d.getTime() + (d.getTimezoneOffset() * 60000)
-  const bogota = new Date(utc - (5 * 3600000))
-  return bogota.toISOString().split('T')[0]
+  // d.getTime() devuelve el epoch en UTC absoluto. Restamos 5 horas para Colombia.
+  const bogotaAsUTC = new Date(d.getTime() - (5 * 3600000))
+  return bogotaAsUTC.toISOString().split('T')[0]
 }
 
 export const fechaMananaColombia = () => {
   const d = new Date()
-  const utc = d.getTime() + (d.getTimezoneOffset() * 60000)
-  const bogota = new Date(utc - (5 * 3600000) + (24 * 3600000))
-  return bogota.toISOString().split('T')[0]
+  const bogotaAsUTC = new Date(d.getTime() - (5 * 3600000) + (24 * 3600000))
+  return bogotaAsUTC.toISOString().split('T')[0]
 }
 
 const toBogotaDate = (fechaStr) => {

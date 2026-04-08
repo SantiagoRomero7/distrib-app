@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { supabase } from '../../supabase';
 import { mostrarAlerta } from '../../utils/alertHelper';
-import { ahoraEnColombia } from '../../utils/fecha';
+import { ahoraEnColombia, formatearFecha } from '../../utils/fecha';
 
 export default function Inventario() {
   const [inventario, setInventario] = useState([]);
@@ -131,7 +131,7 @@ export default function Inventario() {
     <View style={s.card}>
       <View style={{ flex: 1 }}>
         <Text style={s.nombre}>{item.productos?.nombre || 'Sin nombre'} — {item.productos?.tipo || 'General'}</Text>
-        <Text style={s.fechaInfo}>Actualizado: {new Date(item.actualizado_en || item.creado_en).toLocaleString('es-CO')}</Text>
+        <Text style={s.fechaInfo}>Actualizado: {formatearFecha(item.actualizado_en || item.creado_en)}</Text>
       </View>
       <View style={{ alignItems: 'center', marginRight: 14 }}>
         <Text style={[s.stockNum, { color: getColor(item.cantidad) }]}>{Number(item.cantidad)}</Text>
