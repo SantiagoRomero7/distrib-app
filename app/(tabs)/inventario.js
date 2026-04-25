@@ -9,6 +9,7 @@ import { useFocusEffect } from 'expo-router';
 import { supabase } from '../../supabase';
 import { mostrarAlerta } from '../../utils/alertHelper';
 import { ahoraEnColombia, formatearFecha } from '../../utils/fecha';
+import { formatInputPesos, formatPesos, parsePesos } from '../../utils/formatters';
 
 export default function Inventario() {
   const [inventario, setInventario] = useState([]);
@@ -19,6 +20,7 @@ export default function Inventario() {
   const [productoSel, setProductoSel] = useState(null);
   const [entradaEditar, setEntradaEditar] = useState(null);
   const [cantidad, setCantidad] = useState('');
+  const [precioCompra, setPrecioCompra] = useState('');
   const [cantidadEditar, setCantidadEditar] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [cargando, setCargando] = useState(false);
@@ -27,7 +29,7 @@ export default function Inventario() {
     const { data: inv } = await supabase
       .from('inventario')
       .select('*, productos(nombre, tipo)')
-      .order('actualizado_en', { ascending: false });
+      .order('fecha_entrada', { ascending: true });
     
     if (inv) {
       setInventario(inv);
@@ -49,7 +51,7 @@ export default function Inventario() {
       setStockTotal(Object.values(stMap).sort((a, b) => a.nombre.localeCompare(b.nombre)));
     }
     
-    const { data: prods } = await supabase.from('productos').select('id, nombre, tipo').order('nombre');
+    const { data: prods } = await supabase.from('productos').select('id, nombre, tipo, precio_compra').eq('archivado', false).order('nombre');
     if (prods) setProductos(prods);
   };
 
@@ -59,15 +61,18 @@ export default function Inventario() {
   const registrarEntrada = async () => {
     if (!productoSel) { mostrarAlerta('Error', 'Selecciona un producto'); return; }
     if (!cantidad || Number(cantidad) <= 0) { mostrarAlerta('Error', 'Ingresa una cantidad válida'); return; }
+    const precioCompraNum = parsePesos(precioCompra);
+    if (precioCompraNum < 0) { mostrarAlerta('Error', 'El precio de compra no puede ser negativo'); return; }
     setCargando(true);
     const cantNum = Number(cantidad);
-    const { data: existente } = await supabase.from('inventario').select('id, cantidad').eq('producto_id', productoSel.id).single();
-    let error;
-    if (existente) {
-      ({ error } = await supabase.from('inventario').update({ cantidad: Number(existente.cantidad) + cantNum, actualizado_en: new Date().toISOString() }).eq('id', existente.id));
-    } else {
-      ({ error } = await supabase.from('inventario').insert([{ producto_id: productoSel.id, cantidad: cantNum, unidad: 'cajas' }]));
-    }
+    // FIFO: siempre crear un nuevo lote (nuevo registro)
+    const { error } = await supabase.from('inventario').insert([{
+      producto_id: productoSel.id,
+      cantidad: cantNum,
+      unidad: 'cajas',
+      precio_compra: precioCompraNum,
+      fecha_entrada: new Date().toISOString()
+    }]);
     setCargando(false);
     if (error) { mostrarAlerta('Error', error.message); } else {
       mostrarAlerta('Éxito', `Se agregaron ${cantNum} cajas de ${productoSel.nombre}`);
@@ -131,7 +136,8 @@ export default function Inventario() {
     <View style={s.card}>
       <View style={{ flex: 1 }}>
         <Text style={s.nombre}>{item.productos?.nombre || 'Sin nombre'} — {item.productos?.tipo || 'General'}</Text>
-        <Text style={s.fechaInfo}>Actualizado: {formatearFecha(item.actualizado_en || item.creado_en)}</Text>
+        <Text style={s.precioCompraInfo}>Compra: {formatPesos(item.precio_compra)} por caja</Text>
+        <Text style={s.fechaInfo}>Entrada: {formatearFecha(item.fecha_entrada || item.actualizado_en)}</Text>
       </View>
       <View style={{ alignItems: 'center', marginRight: 14 }}>
         <Text style={[s.stockNum, { color: getColor(item.cantidad) }]}>{Number(item.cantidad)}</Text>
@@ -169,13 +175,13 @@ export default function Inventario() {
       <FlatList data={inventario} renderItem={renderItem} keyExtractor={(i) => i.id}
         contentContainerStyle={s.lista}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2d6a4f']} />}
-        ListHeaderComponent={<Text style={s.sectionTitleList}>Historial de Entradas</Text>}
+        ListHeaderComponent={<Text style={s.sectionTitleList}>Lotes de Inventario (FIFO)</Text>}
         ListEmptyComponent={
           <View style={s.empty}><Ionicons name="cube-outline" size={60} color="#ccc" />
             <Text style={s.emptyText}>Sin inventario</Text><Text style={s.emptySub}>Toca + para registrar mercancía</Text></View>
         }
       />
-      <TouchableOpacity style={s.fab} onPress={() => { setProductoSel(null); setCantidad(''); setModalVisible(true); }}>
+      <TouchableOpacity style={s.fab} onPress={() => { setProductoSel(null); setCantidad(''); setPrecioCompra(''); setModalVisible(true); }}>
         <Ionicons name="add" size={30} color="#fff" />
       </TouchableOpacity>
       <Modal visible={modalVisible} animationType="slide" transparent>
@@ -189,7 +195,7 @@ export default function Inventario() {
               <Text style={s.label}>Selecciona Producto</Text>
               <ScrollView style={{ maxHeight: 180 }} nestedScrollEnabled>
                 {productos.map((p) => (
-                  <TouchableOpacity key={p.id} style={[s.opt, productoSel?.id === p.id && s.optSel]} onPress={() => setProductoSel(p)}>
+                  <TouchableOpacity key={p.id} style={[s.opt, productoSel?.id === p.id && s.optSel]} onPress={() => { setProductoSel(p); setPrecioCompra(formatInputPesos(String(p.precio_compra || ''))); }}>
                     <Text style={[s.optText, productoSel?.id === p.id && { color: '#2d6a4f', fontWeight: '600' }]}>{p.nombre} — {p.tipo || 'General'}</Text>
                     {productoSel?.id === p.id && <Ionicons name="checkmark-circle" size={22} color="#2d6a4f" />}
                   </TouchableOpacity>
@@ -198,8 +204,11 @@ export default function Inventario() {
               </ScrollView>
               <Text style={s.label}>Cantidad (cajas)</Text>
               <TextInput style={s.input} value={cantidad} onChangeText={setCantidad} placeholder="Ej: 50" keyboardType="numeric" placeholderTextColor="#aaa" />
+              <Text style={s.label}>Precio de compra de este lote</Text>
+              <TextInput style={s.input} value={precioCompra} onChangeText={(v) => setPrecioCompra(formatInputPesos(v))} placeholder="Ej: 2.500" keyboardType="numeric" placeholderTextColor="#aaa" />
+              <Text style={s.infoText}>Cambia este precio si este lote llegó a un precio diferente</Text>
               <TouchableOpacity style={[s.btn, cargando && { opacity: 0.6 }]} onPress={registrarEntrada} disabled={cargando}>
-                <Text style={s.btnText}>{cargando ? 'Registrando...' : 'Registrar Entrada'}</Text>
+                <Text style={s.btnText}>{cargando ? 'Registrando...' : 'Registrar Lote'}</Text>
               </TouchableOpacity>
             </ScrollView>
           </KeyboardAvoidingView>
@@ -238,7 +247,9 @@ const s = StyleSheet.create({
   lista: { padding: 14, paddingBottom: 80 },
   card: { backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 14, flexDirection: 'row', alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3 },
   nombre: { fontSize: 18, fontWeight: 'bold', color: '#1b4332', marginBottom: 4 },
-  fechaInfo: { fontSize: 14, color: '#666' },
+  fechaInfo: { fontSize: 13, color: '#999', marginTop: 2 },
+  precioCompraInfo: { fontSize: 14, color: '#2d6a4f', fontWeight: '500', marginTop: 4 },
+  infoText: { fontSize: 14, color: '#6c757d', fontStyle: 'italic', marginTop: 6, marginBottom: 4 },
   stockNum: { fontSize: 26, fontWeight: 'bold' },
   unidad: { fontSize: 14, color: '#999', fontWeight: '500' },
   actionRow: { flexDirection: 'row', gap: 10, marginLeft: 6 },

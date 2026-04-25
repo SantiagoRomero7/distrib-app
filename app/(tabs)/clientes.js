@@ -15,7 +15,7 @@ import {
   View,
 } from 'react-native';
 import { supabase } from '../../supabase';
-import { formatearFecha } from '../../utils/fecha';
+import { fechaHoyColombia, formatearFecha } from '../../utils/fecha';
 import { formatInputPesos, formatPesos, parsePesos } from '../../utils/formatters';
 import { mostrarAlerta } from '../../utils/alertHelper';
 
@@ -127,6 +127,9 @@ export default function Clientes() {
     if (errCli) {
       mostrarAlerta('Error', errCli.message);
     } else {
+      // Cobrar ganancias pendientes de ventas a crédito
+      await cobrarGananciaPendiente(clienteSel.id);
+
       if (saldoDespues === 0) {
         mostrarAlerta('Éxito', `🎉 ¡${clienteSel.nombre} terminó de pagar su deuda!`);
       } else {
@@ -134,6 +137,67 @@ export default function Clientes() {
       }
       setModalPago(false);
       cargarClientes();
+    }
+  };
+
+  const cobrarGananciaPendiente = async (cliente_id) => {
+    // Buscar ventas a crédito cuya ganancia no se ha cobrado aún
+    const { data: ventasPendientes } = await supabase
+      .from('ventas')
+      .select('id, ganancia, fecha, venta_grupo')
+      .eq('cliente_id', cliente_id)
+      .eq('es_fiado', true)
+      .eq('ganancia_cobrada', false);
+
+    if (!ventasPendientes || ventasPendientes.length === 0) return;
+
+    // Agrupar por venta_grupo para no duplicar
+    const gruposUnicos = [...new Set(ventasPendientes.map(v => v.venta_grupo))];
+
+    let gananciaTotal = 0;
+
+    for (const grupo of gruposUnicos) {
+      const itemsGrupo = ventasPendientes.filter(v => v.venta_grupo === grupo);
+      const gananciaGrupo = itemsGrupo.reduce((sum, v) => sum + Number(v.ganancia), 0);
+      gananciaTotal += gananciaGrupo;
+
+      // Marcar como cobrada
+      await supabase
+        .from('ventas')
+        .update({ ganancia_cobrada: true })
+        .eq('venta_grupo', grupo);
+    }
+
+    if (gananciaTotal === 0) return;
+
+    // Sumar la ganancia al resumen del día del abono
+    const hoy = fechaHoyColombia();
+    const { data: resumenHoy } = await supabase
+      .from('resumen_diario')
+      .select('*')
+      .eq('fecha', hoy)
+      .single();
+
+    if (resumenHoy) {
+      await supabase
+        .from('resumen_diario')
+        .update({
+          total_ganancia: Number(resumenHoy.total_ganancia) + gananciaTotal
+        })
+        .eq('fecha', hoy);
+    } else {
+      await supabase
+        .from('resumen_diario')
+        .insert({
+          fecha: hoy,
+          total_ganancia: gananciaTotal,
+          total_cajas: 0,
+          total_ventas: 0,
+          total_efectivo: 0,
+          total_transferencia: 0,
+          cantidad_ventas: 0,
+          caja_cerrada: false
+        });
     }
   };
 

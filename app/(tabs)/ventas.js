@@ -20,6 +20,7 @@ import { supabase } from '../../supabase';
 import { ahoraEnColombia, fechaHoyColombia, formatearFecha, formatearFechaCorta } from '../../utils/fecha';
 import { formatInputPesos, formatPesos, parsePesos } from '../../utils/formatters';
 import { mostrarAlerta } from '../../utils/alertHelper';
+import { calcularGananciaFIFO, descontarInventarioFIFO, obtenerStockTotal, obtenerPrecioCompraPromedioFIFO } from '../../utils/fifo';
 
 const generarUUID = () => {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
@@ -28,7 +29,7 @@ const generarUUID = () => {
   });
 };
 
-const crearItemVacio = () => ({ id: Date.now(), producto: null, cantidad: '', precio_aplicado: '', showPicker: false });
+const crearItemVacio = () => ({ id: Date.now(), producto: null, cantidad: '', precio_aplicado: '', precioCompraLote: 0, showPicker: false });
 
 export default function Ventas() {
   const [ventasAgrupadas, setVentasAgrupadas] = useState([]);
@@ -65,6 +66,7 @@ export default function Ventas() {
             fecha: venta.fecha,
             cliente_nombre: venta.clientes?.nombre || 'Cliente general',
             es_fiado: venta.es_fiado,
+            ganancia_cobrada: venta.ganancia_cobrada,
             total: 0,
             ganancia: 0,
             productos_count: 0,
@@ -84,7 +86,7 @@ export default function Ventas() {
 
     if (error) console.error(error);
 
-    const { data: p } = await supabase.from('productos').select('*').order('nombre');
+    const { data: p } = await supabase.from('productos').select('*').eq('archivado', false).order('nombre');
     if (p) setProductos(p);
   };
 
@@ -138,7 +140,7 @@ export default function Ventas() {
   };
   const calcularGananciaItem = (item) => {
     if (!item.producto || !item.cantidad || !item.precio_aplicado) return 0;
-    return (parsePesos(item.precio_aplicado) - Number(item.producto.precio_compra)) * Number(item.cantidad);
+    return (parsePesos(item.precio_aplicado) - Number(item.precioCompraLote || item.producto.precio_compra)) * Number(item.cantidad);
   };
   const totalGeneral = items.reduce((sum, it) => sum + calcularSubtotal(it), 0);
   const gananciaTotal = items.reduce((sum, it) => sum + calcularGananciaItem(it), 0);
@@ -149,11 +151,16 @@ export default function Ventas() {
   };
   const agregarItem = () => { setItems(prev => [...prev, crearItemVacio()]); };
   const eliminarItem = (id) => { setItems(prev => prev.filter(it => it.id !== id)); };
-  const seleccionarProducto = (itemId, prod) => {
+  const seleccionarProducto = async (itemId, prod) => {
+    // Obtener precio de compra promedio ponderado FIFO de los lotes disponibles
+    const precioPromedio = await obtenerPrecioCompraPromedioFIFO(supabase, prod.id);
+    const precioCompraLote = precioPromedio || Number(prod.precio_compra) || 0;
+
     setItems(prev => prev.map(it => it.id === itemId ? {
       ...it,
       producto: prod,
       precio_aplicado: formatInputPesos(prod.precio_venta.toString()),
+      precioCompraLote: precioCompraLote,
       showPicker: false
     } : it));
   };
@@ -173,7 +180,7 @@ export default function Ventas() {
         mostrarAlerta('Error', `El precio aplicado para ${it.producto.nombre} no puede ser 0 o menor.`);
         return;
       }
-      if (parsePesos(it.precio_aplicado) < Number(it.producto.precio_compra)) {
+      if (parsePesos(it.precio_aplicado) < Number(it.precioCompraLote || it.producto.precio_compra)) {
         gananciaNegativa = true;
       }
     }
@@ -192,7 +199,8 @@ export default function Ventas() {
     }
   };
 
-  const actualizarResumenDiario = async (cajas, total, ganancia, metodo, fechaResumen) => {
+  const actualizarResumenDiario = async (cajas, total, ganancia, metodo, fechaResumen, sumarGanancia = true) => {
+    const gananciaASumar = sumarGanancia ? ganancia : 0;
     const { data } = await supabase
       .from('resumen_diario')
       .select('*')
@@ -205,7 +213,7 @@ export default function Ventas() {
         .update({
           total_cajas: Number(data.total_cajas || 0) + cajas,
           total_ventas: Number(data.total_ventas || 0) + total,
-          total_ganancia: Number(data.total_ganancia || 0) + ganancia,
+          total_ganancia: Number(data.total_ganancia || 0) + gananciaASumar,
           total_efectivo: metodo === 'efectivo' ? Number(data.total_efectivo || 0) + total : Number(data.total_efectivo || 0),
           total_transferencia: metodo === 'transferencia' ? Number(data.total_transferencia || 0) + total : Number(data.total_transferencia || 0),
           cantidad_ventas: Number(data.cantidad_ventas || 0) + 1
@@ -218,7 +226,7 @@ export default function Ventas() {
           fecha: fechaResumen,
           total_cajas: cajas,
           total_ventas: total,
-          total_ganancia: ganancia,
+          total_ganancia: gananciaASumar,
           total_efectivo: metodo === 'efectivo' ? total : 0,
           total_transferencia: metodo === 'transferencia' ? total : 0,
           cantidad_ventas: 1
@@ -229,13 +237,13 @@ export default function Ventas() {
   const ejecutarRegistro = async (itemsValidos, fechaResumen) => {
     setCargando(true);
 
+    // Validar stock usando FIFO (sumar todos los lotes)
     for (const it of itemsValidos) {
       const cantNum = Number(it.cantidad);
-      const { data: inv } = await supabase.from('inventario').select('cantidad').eq('producto_id', it.producto.id).single();
-      const stockActual = inv ? Number(inv.cantidad) : 0;
-      if (cantNum > stockActual) {
+      const stockTotal = await obtenerStockTotal(supabase, it.producto.id);
+      if (cantNum > stockTotal) {
         setCargando(false);
-        mostrarAlerta('Stock insuficiente', `Stock insuficiente para ${it.producto.nombre} — ${it.producto.tipo || ''}.\nDisponible: ${stockActual} cajas, pedido: ${cantNum}`);
+        mostrarAlerta('Stock insuficiente', `Solo hay ${stockTotal} cajas disponibles de ${it.producto.nombre} — ${it.producto.tipo || ''}.`);
         return;
       }
     }
@@ -248,13 +256,19 @@ export default function Ventas() {
     const grupoId = generarUUID();
     let hayError = false;
     let cajasTotales = 0;
+    let gananciaRealTotal = 0;
 
     for (const it of itemsValidos) {
       const cantNum = Number(it.cantidad);
       cajasTotales += cantNum;
       const precioAplicado = parsePesos(it.precio_aplicado);
       const subtotal = cantNum * precioAplicado;
-      const ganancia = (precioAplicado - Number(it.producto.precio_compra)) * cantNum;
+
+      // Calcular ganancia real usando FIFO
+      const { ganancia, precioCompraPromedio } = await calcularGananciaFIFO(
+        supabase, it.producto.id, cantNum, precioAplicado
+      );
+      gananciaRealTotal += ganancia;
 
       const { error: errVenta } = await supabase.from('ventas').insert([{
         venta_grupo: grupoId,
@@ -262,16 +276,15 @@ export default function Ventas() {
         cliente_id: clienteIdSel,
         cantidad: cantNum,
         precio_unitario: precioAplicado,
-        precio_compra_unitario: Number(it.producto.precio_compra),
+        precio_compra_unitario: precioCompraPromedio,
         total: subtotal, ganancia, es_fiado: esFiado, fecha,
-        metodo_pago: metodoPago
+        metodo_pago: metodoPago,
+        ganancia_cobrada: !esFiado
       }]);
       if (errVenta) { hayError = true; mostrarAlerta('Error', errVenta.message); break; }
 
-      const { data: inv } = await supabase.from('inventario').select('id, cantidad').eq('producto_id', it.producto.id).single();
-      if (inv) {
-        await supabase.from('inventario').update({ cantidad: Math.max(0, Number(inv.cantidad) - cantNum), actualizado_en: ahoraEnColombia().toISOString() }).eq('id', inv.id);
-      }
+      // Descontar inventario usando FIFO
+      await descontarInventarioFIFO(supabase, it.producto.id, cantNum);
     }
 
     if (!hayError && esFiado && clienteIdSel) {
@@ -279,7 +292,7 @@ export default function Ventas() {
     }
 
     if (!hayError) {
-      await actualizarResumenDiario(cajasTotales, totalGeneral, gananciaTotal, metodoPago, fechaResumen);
+      await actualizarResumenDiario(cajasTotales, totalGeneral, gananciaRealTotal, metodoPago, fechaResumen, !esFiado);
     }
 
     setCargando(false);
@@ -307,6 +320,12 @@ export default function Ventas() {
         <Text style={s.ventaFecha}>{formatearFechaCorta(item.fecha)}</Text>
         <Text style={s.ventaCliente}>👤 {item.cliente_nombre}</Text>
         <Text style={s.ventaDetalle}>{item.productos_count} {item.productos_count === 1 ? 'producto' : 'productos'}</Text>
+        {item.es_fiado && !item.ganancia_cobrada && (
+          <Text style={s.gananciaPendiente}>⏳ Ganancia pendiente de cobro</Text>
+        )}
+        {item.es_fiado && item.ganancia_cobrada && (
+          <Text style={s.gananciaCobrada}>✅ Ganancia cobrada</Text>
+        )}
       </View>
       <View style={{ alignItems: 'flex-end', justifyContent: 'center' }}>
         <Text style={s.ventaTotalCard}>{formatPesos(item.total)}</Text>
@@ -534,6 +553,8 @@ const s = StyleSheet.create({
   ventaDetalle: { fontSize: 16, color: '#555', marginTop: 4 },
   ventaTotalCard: { fontSize: 26, fontWeight: 'bold', color: '#1b4332' },
   fiadoBadge: { fontSize: 13, color: '#fff', backgroundColor: '#ff8f00', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, marginTop: 6, overflow: 'hidden', fontWeight: 'bold' },
+  gananciaPendiente: { fontSize: 13, color: '#ff8f00', fontWeight: '500', marginTop: 4 },
+  gananciaCobrada: { fontSize: 13, color: '#2d6a4f', fontWeight: '500', marginTop: 4 },
   empty: { alignItems: 'center', marginTop: 100 }, emptyText: { fontSize: 22, color: '#999', marginTop: 16 }, emptySub: { fontSize: 16, color: '#bbb', marginTop: 6 },
   fab: { position: 'absolute', bottom: 20, right: 20, width: 70, height: 70, borderRadius: 35, backgroundColor: '#2d6a4f', justifyContent: 'center', alignItems: 'center', elevation: 6 },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },

@@ -22,6 +22,8 @@ import { mostrarAlerta } from '../../utils/alertHelper';
 
 export default function Productos() {
   const [productos, setProductos] = useState([]);
+  const [productosArchivados, setProductosArchivados] = useState([]);
+  const [mostrarArchivados, setMostrarArchivados] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editando, setEditando] = useState(null);
   const [nombre, setNombre] = useState('');
@@ -36,6 +38,7 @@ export default function Productos() {
     const { data, error } = await supabase
       .from('productos')
       .select('*')
+      .eq('archivado', false)
       .order('creado_en', { ascending: false });
 
     if (error) {
@@ -43,6 +46,13 @@ export default function Productos() {
     } else {
       setProductos(data || []);
     }
+
+    const { data: archivados } = await supabase
+      .from('productos')
+      .select('*')
+      .eq('archivado', true)
+      .order('nombre');
+    setProductosArchivados(archivados || []);
   };
 
   useFocusEffect(
@@ -116,39 +126,74 @@ export default function Productos() {
     }
   };
 
-  const eliminarProducto = (producto) => {
-    mostrarAlerta(
-      'Eliminar Producto',
-      `¿Seguro que deseas eliminar "${producto.nombre}"?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            // Check for related ventas
-            const { data: ventasRel } = await supabase.from('ventas').select('id').eq('producto_id', producto.id).limit(1);
-            if (ventasRel && ventasRel.length > 0) {
-              mostrarAlerta('No se puede eliminar', 'Este producto tiene ventas registradas. No se puede eliminar.');
-              return;
-            }
-            // Check for related inventario
-            const { data: invRel } = await supabase.from('inventario').select('id').eq('producto_id', producto.id).limit(1);
-            if (invRel && invRel.length > 0) {
-              mostrarAlerta('No se puede eliminar', 'Este producto tiene inventario registrado. No se puede eliminar.');
-              return;
-            }
-            const { error } = await supabase.from('productos').delete().eq('id', producto.id);
-            if (error) {
-              mostrarAlerta('Error', 'No se pudo eliminar: ' + error.message);
-            } else {
-              mostrarAlerta('Listo', 'Producto eliminado');
-              cargarProductos();
-            }
+  const eliminarOArchivar = async (producto) => {
+    // Check for related ventas
+    const { data: ventasRel } = await supabase.from('ventas').select('id').eq('producto_id', producto.id).limit(1);
+    const tieneVentas = ventasRel && ventasRel.length > 0;
+    // Check for related inventario
+    const { data: invRel } = await supabase.from('inventario').select('id').eq('producto_id', producto.id).limit(1);
+    const tieneInventario = invRel && invRel.length > 0;
+
+    if (!tieneVentas && !tieneInventario) {
+      // OPCIÓN A: Eliminar definitivamente
+      mostrarAlerta(
+        'Eliminar Producto',
+        `¿Eliminar "${producto.nombre}"? Esta acción no se puede deshacer.`,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Eliminar',
+            style: 'destructive',
+            onPress: async () => {
+              const { error } = await supabase.from('productos').delete().eq('id', producto.id);
+              if (error) {
+                mostrarAlerta('Error', 'No se pudo eliminar: ' + error.message);
+              } else {
+                mostrarAlerta('Listo', 'Producto eliminado');
+                cargarProductos();
+              }
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+    } else {
+      // OPCIÓN B: Archivar
+      mostrarAlerta(
+        'Archivar Producto',
+        `¿Archivar "${producto.nombre}"? El producto desaparecerá de las listas pero el historial de ventas se conserva.`,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Archivar',
+            onPress: async () => {
+              const { error } = await supabase
+                .from('productos')
+                .update({ archivado: true })
+                .eq('id', producto.id);
+              if (error) {
+                mostrarAlerta('Error', 'No se pudo archivar: ' + error.message);
+              } else {
+                mostrarAlerta('Listo', 'Producto archivado');
+                cargarProductos();
+              }
+            },
+          },
+        ]
+      );
+    }
+  };
+
+  const desarchivar = async (id, nombre) => {
+    const { error } = await supabase
+      .from('productos')
+      .update({ archivado: false })
+      .eq('id', id);
+    if (error) {
+      mostrarAlerta('Error', 'No se pudo desarchivar: ' + error.message);
+    } else {
+      mostrarAlerta('Listo', `"${nombre}" restaurado`);
+      cargarProductos();
+    }
   };
 
   const renderProducto = ({ item }) => (
@@ -178,12 +223,36 @@ export default function Productos() {
         <TouchableOpacity style={styles.actionBtn} onPress={() => abrirModal(item)}>
           <Ionicons name="pencil" size={20} color="#2d6a4f" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => eliminarProducto(item)}>
-          <Ionicons name="trash" size={20} color="#d32f2f" />
+        <TouchableOpacity style={styles.actionBtn} onPress={() => eliminarOArchivar(item)}>
+          <Ionicons name="archive" size={20} color="#ff8f00" />
         </TouchableOpacity>
       </View>
     </View>
   );
+
+  const renderSeccionArchivados = () => {
+    if (productosArchivados.length === 0) return null;
+    return (
+      <View style={styles.archivadosSection}>
+        <TouchableOpacity style={styles.archivadosHeader} onPress={() => setMostrarArchivados(!mostrarArchivados)}>
+          <Ionicons name={mostrarArchivados ? 'chevron-down' : 'chevron-forward'} size={22} color="#999" />
+          <Text style={styles.archivadosTitle}>Productos archivados ({productosArchivados.length})</Text>
+        </TouchableOpacity>
+        {mostrarArchivados && productosArchivados.map((p) => (
+          <View key={p.id} style={styles.archivadoCard}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.archivadoNombre}>{p.nombre}</Text>
+              {p.tipo ? <Text style={styles.archivadoTipo}>{p.tipo}</Text> : null}
+            </View>
+            <TouchableOpacity style={styles.desarchivarBtn} onPress={() => desarchivar(p.id, p.nombre)}>
+              <Ionicons name="refresh" size={18} color="#fff" />
+              <Text style={styles.desarchivarText}>Restaurar</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -202,6 +271,7 @@ export default function Productos() {
             <Text style={styles.emptySubtext}>Toca el botón + para agregar uno</Text>
           </View>
         }
+        ListFooterComponent={renderSeccionArchivados}
       />
 
       {/* FAB */}
@@ -253,6 +323,7 @@ export default function Productos() {
                 keyboardType="numeric"
                 placeholderTextColor="#aaa"
               />
+              <Text style={styles.infoText}>Este precio se puede ajustar por lote al registrar entrada de inventario</Text>
 
               <Text style={styles.inputLabel}>Precio de Venta *</Text>
               <TextInput
@@ -336,6 +407,15 @@ const styles = StyleSheet.create({
   emptyContainer: { alignItems: 'center', marginTop: 100 },
   emptyText: { fontSize: 22, color: '#999', marginTop: 16 },
   emptySubtext: { fontSize: 16, color: '#bbb', marginTop: 6 },
+  infoText: { fontSize: 14, color: '#6c757d', fontStyle: 'italic', marginTop: 6, marginBottom: 4 },
+  archivadosSection: { marginTop: 20, marginBottom: 20 },
+  archivadosHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12, paddingHorizontal: 4 },
+  archivadosTitle: { fontSize: 18, fontWeight: '600', color: '#999' },
+  archivadoCard: { backgroundColor: '#f8f8f8', borderRadius: 12, padding: 16, marginBottom: 8, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#e0e0e0', borderStyle: 'dashed' },
+  archivadoNombre: { fontSize: 16, fontWeight: '600', color: '#999' },
+  archivadoTipo: { fontSize: 14, color: '#bbb', marginTop: 2 },
+  desarchivarBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#52b788', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10 },
+  desarchivarText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
   fab: {
     position: 'absolute',
     bottom: 20,
